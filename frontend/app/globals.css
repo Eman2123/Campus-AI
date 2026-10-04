@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  /* Faint ruled-notebook lines — used once, on the hero, as the one
+     characteristic texture of the subject (a student's page), not
+     repeated as decoration elsewhere. */
+  .rule-lines {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(239, 234, 216, 0.07) 0px,
+      rgba(239, 234, 216, 0.07) 1px,
+      transparent 1px,
+      transparent 2.75rem
+    );
+  }
+}
+
+::selection {
+  background: #f5b942;
+  color: #12172b;
+}

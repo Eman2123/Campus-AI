@@ -1,0 +1,63 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+sqlalchemy[asyncio]==2.0.35
+asyncpg==0.29.0
+alembic==1.13.2
+redis==5.0.8
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+# Pinned: passlib 1.7.4's internal self-test breaks on bcrypt>=4.1 (removed
+# `__about__.__version__`, which passlib checks). Without this pin, a plain
+# `pip install -r requirements.txt` silently gets a broken bcrypt and every
+# signup/signin call fails with "password cannot be longer than 72 bytes" —
+# a red herring; the real cause is the version mismatch. Found for real on Day 16.
+bcrypt==4.0.1
+python-multipart==0.0.9
+python-dotenv==1.0.1
+email-validator==2.2.0
+
+# Agent orchestration (Day 4+)
+langgraph==1.2.11
+langchain-core==1.6.2
+openai==3.9.0
+
+# Voice (Day 6+)
+assemblyai==1.3.0
+
+# Checkpointing (Day 13) — Postgres-backed, using the same Neon DB.
+# See app/core/checkpointer.py for why this replaced the originally
+# planned Redis-backed checkpointer (Upstash/plain Redis lack the
+# RediSearch module langgraph-checkpoint-redis requires).
+langgraph-checkpoint-postgres==3.1.2
+psycopg[binary]>=3.2.3,<4.0.0
+psycopg-pool>=3.2.3,<4.0.0
+# Was pinned to exactly 3.2.3 — no pre-built ("binary") wheel exists for
+# that exact version on very new Python releases (e.g. 3.14), so pip
+# fails with "No matching distribution found for psycopg-binary==3.2.3"
+# even though newer 3.2.x/3.3.x wheels work fine. Loosened to a range
+# instead of one more exact pin, so this doesn't break again next release.
+# `redis` package above stays in case Redis gets used later for plain
+# caching (not checkpointing) — not required for Day 13 to work.
+
+# Testing (Day 14+)
+pytest==9.1.1
+
+# RAG pipeline (Day 17) — chunking, embeddings, text extraction
+pgvector
+pypdf==6.18.0
+python-docx==1.2.0
+
+# Planner Agent (Day 19) — fuzzy date parsing for deadlines/exam dates
+# stated in plain English when no AIML_API_KEY is set for LLM extraction.
+python-dateutil
+
+# Calendar Export + Deadline Reminders (Day 20)
+icalendar==5.0.13       # RFC 5545 .ics generation (line folding/escaping handled correctly)
+apscheduler==3.10.4     # in-process cron for the daily reminder sweep
+httpx==0.27.2           # Resend's REST API — also already a transitive dep via TestClient
+
+# File Organizer (Day 23) — service-account Drive filing
+google-api-python-client==2.149.0
+google-auth==2.35.0
