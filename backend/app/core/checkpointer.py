@@ -82,11 +82,24 @@ async def attach_postgres_checkpointer(graph) -> None:
     """
     try:
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        from psycopg.rows import dict_row
+        from psycopg_pool import AsyncConnectionPool
 
-        conn_string = _psycopg_conn_string()
-        saver_cm = AsyncPostgresSaver.from_conn_string(conn_string)
-        saver = await saver_cm.__aenter__()
-        _open_checkpointer_cms.append(saver_cm)  # prevent GC from closing the connection
+        # A *pool* with a health check instead of one long-lived connection:
+        # Neon closes idle connections, and a single dead connection would
+        # break every chat turn until the server restarted.
+        pool = AsyncConnectionPool(
+            conninfo=_psycopg_conn_string(),
+            max_size=5,
+            max_idle=120,
+            kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+            check=AsyncConnectionPool.check_connection,
+            open=False,
+        )
+        await pool.open(wait=True, timeout=15)
+        _open_checkpointer_cms.append(pool)  # keep a live reference for the process lifetime
+
+        saver = AsyncPostgresSaver(pool)
         await saver.setup()  # creates the checkpoint tables on first run
 
         graph.checkpointer = saver
