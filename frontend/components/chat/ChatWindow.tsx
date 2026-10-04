@@ -75,7 +75,13 @@ export function ChatWindow({ token, sessionId, onMessageSent }: ChatWindowProps)
     setPending(true);
     setAwaitingFirstToken(true);
 
-    let assistantId: string | null = null;
+    // Both of these live OUTSIDE the setMessages updaters on purpose. React 18
+    // StrictMode (next dev) runs every state updater twice to catch impurities;
+    // the old code assigned `assistantId` *inside* the updater, so the second
+    // run saw it already set, looked for a message that didn't exist yet, and
+    // the assistant bubble never appeared (while "Thinking…" still vanished).
+    const assistantId = newMessageId();
+    let assistantStarted = false;
 
     try {
       // Day 30: streamMessage delivers the reply as it's chunked out
@@ -84,19 +90,17 @@ export function ChatWindow({ token, sessionId, onMessageSent }: ChatWindowProps)
       const { agent_used } = await streamMessage(token, sessionId, content, {
         onToken: (chunk) => {
           setAwaitingFirstToken(false);
-          setMessages((prev) => {
-            if (assistantId === null) {
-              assistantId = newMessageId();
-              return [...prev, { id: assistantId, role: "assistant", content: chunk }];
-            }
-            return prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m));
-          });
+          if (!assistantStarted) {
+            assistantStarted = true;
+            setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: chunk }]);
+          } else {
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m)));
+          }
         },
       });
 
-      if (assistantId) {
-        const finalId: string = assistantId;
-        setMessages((prev) => prev.map((m) => (m.id === finalId ? { ...m, agentUsed: agent_used } : m)));
+      if (assistantStarted) {
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, agentUsed: agent_used } : m)));
       }
       onMessageSent?.();
     } catch (err) {
