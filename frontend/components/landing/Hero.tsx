@@ -1,60 +1,55 @@
-import Link from "next/link";
+import Image from "next/image";
+import { PixelBadge, PixelButton, PixelSection } from "@/components/pixel";
+import { ASSETS } from "@/lib/assets";
 
-import { Button } from "@/components/ui/Button";
+const AGENT_TAGS = ["Research", "Homework", "Quizzes", "Notes", "Flashcards", "Feedback"];
 
-const agentTags = [
-  { label: "Research", color: "border-note-periwinkle text-note-periwinkle" },
-  { label: "Homework", color: "border-highlighter text-highlighter" },
-  { label: "Quizzes", color: "border-note-coral text-note-coral" },
-  { label: "Notes", color: "border-note-mint text-note-mint" },
-  { label: "Flashcards", color: "border-note-periwinkle text-note-periwinkle" },
-  { label: "Study plans", color: "border-highlighter text-highlighter" },
-];
-
+/** Section 2: yellow hero. Robot floats in a graph-paper panel so its amber never blends into the yellow. */
 export function Hero() {
+  const robot = ASSETS.hero.robot;
+
   return (
-    <section className="rule-lines relative border-b border-paper/10 px-6 py-24 sm:px-10 lg:px-16">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-16 flex items-center justify-between">
-          <p className="font-sans text-sm text-muted-onDark">Campus AI</p>
-          <Link href="/signin" className="font-sans text-sm text-paper underline underline-offset-4">
-            Sign in
-          </Link>
+    <PixelSection bg="yellow" className="!pt-10 sm:!pt-16">
+      <div className="grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
+        <div>
+          <PixelBadge tone="black" className="mb-5">Your AI study buddy</PixelBadge>
+          <h1 className="font-pixel text-4xl font-bold leading-[1.08] sm:text-5xl lg:text-6xl">
+            Study help that actually reads your coursework.
+          </h1>
+          <p className="mt-6 max-w-xl font-sans text-lg leading-relaxed">
+            Upload a syllabus, a problem set, a stack of lecture notes. Ask out loud or type it in
+            your own words. Campus AI sends it to the right specialist and answers from your own
+            material, not a guess.
+          </p>
+          <div className="mt-9 flex flex-wrap items-center gap-4">
+            <PixelButton href="/signup" variant="dark" size="lg">
+              Start studying
+            </PixelButton>
+            <PixelButton href="#how-it-works" variant="secondary" size="lg">
+              See how it works
+            </PixelButton>
+          </div>
+          <ul className="mt-9 flex flex-wrap gap-2.5" aria-label="Study specialists">
+            {AGENT_TAGS.map((t) => (
+              <li key={t}>
+                <PixelBadge tone="white">{t}</PixelBadge>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <div className="grid gap-16 lg:grid-cols-[3fr_2fr] lg:items-center">
-          <div>
-            <h1 className="font-display text-4xl leading-[1.1] text-paper sm:text-5xl lg:text-6xl">
-              Study help that actually reads your coursework.
-            </h1>
-            <p className="mt-6 max-w-prose font-sans text-lg leading-relaxed text-muted-onDark">
-              Upload a syllabus, a problem set, a stack of lecture notes. Ask a
-              question out loud or type it in your own words. Campus AI routes
-              it to the right specialist — homework, quizzes, flashcards,
-              summaries, or a backward-planned study schedule — and answers
-              grounded in your own material, not a guess.
-            </p>
-            <div className="mt-10 flex flex-wrap items-center gap-4">
-              <Button href="/signup">Start studying</Button>
-              <Button href="#how-it-works" variant="ghost">
-                See how it works
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3 lg:justify-end">
-            {agentTags.map((tag, i) => (
-              <span
-                key={tag.label}
-                className={`rounded-sm border bg-ink-soft px-4 py-2 font-sans text-sm ${tag.color}`}
-                style={{ transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)` }}
-              >
-                {tag.label}
-              </span>
-            ))}
-          </div>
+        <div className="bg-graph mx-auto w-full max-w-md border-pixel border-brand-black p-6 shadow-pixel-lg sm:p-8">
+          <Image
+            src={robot.src}
+            width={robot.width}
+            height={robot.height}
+            alt={robot.alt}
+            priority
+            sizes="(min-width: 1024px) 380px, 80vw"
+            className="mx-auto h-auto w-full animate-pixel-float"
+          />
         </div>
       </div>
-    </section>
+    </PixelSection>
   );
 }

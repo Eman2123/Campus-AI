@@ -1,19 +1,39 @@
-import { Button } from "@/components/ui/Button";
+import Image from "next/image";
+import { PixelButton, PixelSection } from "@/components/pixel";
+import { ASSETS } from "@/lib/assets";
 
+/** Section 10a: yellow closing CTA. Reuses the hero robot (no extra asset). */
 export function CtaSection() {
+  const robot = ASSETS.hero.robot;
+
   return (
-    <section className="rule-lines border-t border-paper/10 px-6 py-24 text-center sm:px-10 lg:px-16">
-      <div className="mx-auto max-w-2xl">
-        <h2 className="font-display text-3xl text-paper sm:text-4xl">
-          Bring your next assignment. See what it does with it.
-        </h2>
-        <p className="mt-4 font-sans text-base text-muted-onDark">
-          Free to start. No credit card, no calendar account required.
-        </p>
-        <div className="mt-8 flex justify-center">
-          <Button href="/signup">Start studying</Button>
+    <PixelSection bg="yellow" id="start">
+      <div className="grid items-center gap-10 md:grid-cols-[1fr_auto]">
+        <div>
+          <h2 className="font-pixel text-4xl font-bold leading-tight sm:text-5xl">
+            Ready to study with your own notes?
+          </h2>
+          <p className="mt-4 max-w-xl font-sans text-lg leading-relaxed">
+            Create an account, upload what you have, and ask your first question.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <PixelButton href="/signup" variant="dark" size="lg">
+              Start studying
+            </PixelButton>
+            <PixelButton href="/signin" variant="secondary" size="lg">
+              Sign in
+            </PixelButton>
+          </div>
         </div>
+        <Image
+          src={robot.src}
+          width={robot.width}
+          height={robot.height}
+          alt=""
+          sizes="220px"
+          className="mx-auto h-auto w-44 animate-pixel-float md:w-56"
+        />
       </div>
-    </section>
+    </PixelSection>
   );
 }

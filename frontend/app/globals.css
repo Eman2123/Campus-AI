@@ -21,3 +21,66 @@
   background: #f5b942;
   color: #12172b;
 }
+
+/* ------------------------------------------------------------------ *
+ * Pixel redesign utilities (Phase 2)
+ * ------------------------------------------------------------------ */
+@layer utilities {
+  /* Graph-paper background for WHITE sections only (yellow stays solid).
+     Pure CSS: 32px cells, every 4th line (128px) a little darker.
+     Drawn on ::before so it can fade at the top/bottom edge without
+     fading the content, and sits under children via isolation.
+     Strength is tunable with --graph-minor / --graph-major. */
+  .bg-graph {
+    position: relative;
+    isolation: isolate;
+    background-color: #ffffff;
+    --graph-minor: rgba(23, 23, 23, 0.06);
+    --graph-major: rgba(23, 23, 23, 0.1);
+  }
+  .bg-graph::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--graph-major) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--graph-major) 1px, transparent 1px),
+      linear-gradient(to right, var(--graph-minor) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--graph-minor) 1px, transparent 1px);
+    background-size: 128px 128px, 128px 128px, 32px 32px, 32px 32px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 48px, #000 calc(100% - 48px), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 48px, #000 calc(100% - 48px), transparent);
+  }
+  /* Calmer variant for reading-heavy sections (FAQ). */
+  .bg-graph-faint {
+    --graph-minor: rgba(23, 23, 23, 0.035);
+    --graph-major: rgba(23, 23, 23, 0.06);
+  }
+
+  /* Crisp pixel scaling for the voxel/pixel art. */
+  .img-pixel {
+    image-rendering: pixelated;
+  }
+}
+
+@layer components {
+  /* One focus style everywhere: thick black outline, offset so it never
+     touches the hard shadow. */
+  .pixel-focus:focus-visible {
+    outline: 3px solid #171717;
+    outline-offset: 4px;
+  }
+}
+
+/* Motion is decoration, never required. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

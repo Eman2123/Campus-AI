@@ -28,3 +28,41 @@ export const fonts = {
   display: "var(--font-caslon)",
   sans: "var(--font-work-sans)",
 } as const;
+
+/* ------------------------------------------------------------------ *
+ * Pixel redesign tokens (yellow + white + black) — see the PRD.
+ * Single source of truth: tailwind.config.ts imports these, so a value
+ * changes in exactly one place. The legacy ink/paper tokens above stay
+ * until every route has migrated (Phases 3-6), then get deleted.
+ * ------------------------------------------------------------------ */
+export const brand = {
+  yellow: "#FACC15", // primary — matches the favicon and the icon set
+  yellowSoft: "#FEF9C3", // alternate section background
+  yellowDeep: "#F5B800", // side faces / pressed states / robot amber
+  black: "#171717", // text, outlines, hard shadows, footer
+  white: "#FFFFFF",
+} as const;
+
+/** Accent combo A (playful). Tags, badges, icon chips — never big backgrounds. */
+export const accent = {
+  coral: "#FB7185",
+  mint: "#34D399",
+  sky: "#38BDF8",
+} as const;
+
+export const pixel = {
+  /** Border width for every pixel component (px). */
+  border: 3,
+  /** Hard offset shadows — no blur, ever. */
+  shadow: {
+    sm: "2px 2px 0 0 #171717",
+    md: "4px 4px 0 0 #171717",
+    lg: "6px 6px 0 0 #171717",
+  },
+  /** Graph-paper background: minor cell and major (every 4th line) cell. */
+  graph: { cell: 32, major: 128 },
+} as const;
+
+export const pixelFonts = {
+  pixel: "var(--font-pixel)", // headings and short labels only
+} as const;
