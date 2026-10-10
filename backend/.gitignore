@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+alembic/versions/*.pyc
+
+# Day 38 secrets audit — neither of these was ever actually excluded.
+# uploads/ holds real user-submitted documents (app/core/storage.py's
+# UPLOAD_DIR) — not secrets exactly, but user content that has no
+# business in git history. secrets/ is where the README has always
+# told people to put the Google service-account JSON key (see the
+# Day-23-era setup docs) — without this entry, anyone who followed
+# that instruction literally and then ran a bare `git add .` would
+# commit a real credential.
+uploads/
+secrets/
