@@ -38,7 +38,6 @@ def graph():
         ("summarize my notes on cell biology", "notes"),
         ("make flashcards for the water cycle", "flashcard"),
         ("please grade my answer to question 3", "feedback"),
-        ("answer this using my uploaded file", "document"),
     ],
 )
 def test_core_agents_route_correctly(graph, message, expected_agent):
@@ -110,3 +109,18 @@ def test_chat_endpoint_full_http_roundtrip(client, auth_headers):
     assert body["intent"] == "research"
     assert body["agent_used"] == "research"
     assert len(body["reply"]) > 0
+
+
+def test_document_agent_is_reachable_through_the_chat_endpoint(client, auth_headers):
+    """Document does async DB retrieval and has no sync implementation, so it
+    can't go through the sync `graph.invoke` parametrized test above — drive
+    it through the real endpoint (and its event loop) instead."""
+    resp = client.post(
+        "/api/chat",
+        json={"message": "answer this using my uploaded file", "session_id": new_thread_id("day14-document")["configurable"]["thread_id"]},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["agent_used"] == "document"
+    assert body["intent"] == "document"

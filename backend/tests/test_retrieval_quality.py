@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from app.agents.document import NO_RELEVANT_CHUNKS_REPLY
 from app.core.config import settings
+from tests.helpers import wait_for_document
 
 
 def _orthogonal_embedding_fn(marker_word: str):
@@ -34,7 +35,8 @@ def test_irrelevant_document_is_filtered_out_when_a_real_key_is_configured(clien
     with patch.object(settings, "AIML_API_KEY", "fake-key-for-test"), \
          patch("app.core.rag_pipeline.get_embedding", side_effect=fake_embed), \
          patch("app.agents.document.get_embedding", side_effect=fake_embed), \
-         patch("app.core.subject_classifier.chat_completion", return_value="Biology"):
+         patch("app.core.subject_classifier.chat_completion", return_value="Biology"), \
+         patch("app.agents.supervisor.classify_intent", return_value="document"):
 
         upload_resp = client.post(
             "/api/documents/upload",
@@ -48,7 +50,7 @@ def test_irrelevant_document_is_filtered_out_when_a_real_key_is_configured(clien
             headers=auth_headers,
         )
         assert upload_resp.status_code == 201, upload_resp.text
-        assert upload_resp.json()["embedding_status"] == "ready"
+        assert wait_for_document(client, auth_headers, upload_resp.json()["id"])["embedding_status"] == "ready"
 
         # A completely unrelated query lands on the orthogonal axis —
         # cosine distance 1.0, well past DOCUMENT_MAX_COSINE_DISTANCE (0.9).

@@ -96,14 +96,17 @@ def test_full_automation_journey(client, auth_headers):
         assert mock_digest_email.call_count == 1
 
     # --- 7. Document Agent — answers grounded in the uploaded material ---
-    doc_resp = client.post(
-        "/api/chat",
-        json={
-            "message": "using my chemistry notes, what do they cover?",
-            "session_id": f"day25-{uuid.uuid4()}",
-        },
-        headers=auth_headers,
-    )
+    # Pinned: this test is about the downstream agent, not about how the
+    # keyword fallback classifies the message when no AIML_API_KEY is set.
+    with patch("app.agents.supervisor.classify_intent", return_value="document"):
+        doc_resp = client.post(
+            "/api/chat",
+            json={
+                "message": "using my chemistry notes, what do they cover?",
+                "session_id": f"day25-{uuid.uuid4()}",
+            },
+            headers=auth_headers,
+        )
     assert doc_resp.status_code == 200
     doc_body = doc_resp.json()
     assert doc_body["agent_used"] == "document"
@@ -120,11 +123,12 @@ def test_full_automation_journey(client, auth_headers):
     assert len(events_after_delete) == len(events)  # unaffected by document deletion
 
     # ...but Document Agent now has nothing left to search.
-    doc_resp_after_delete = client.post(
-        "/api/chat",
-        json={"message": "using my chemistry notes, what do they cover?", "session_id": f"day25-{uuid.uuid4()}"},
-        headers=auth_headers,
-    )
+    with patch("app.agents.supervisor.classify_intent", return_value="document"):
+        doc_resp_after_delete = client.post(
+            "/api/chat",
+            json={"message": "using my chemistry notes, what do they cover?", "session_id": f"day25-{uuid.uuid4()}"},
+            headers=auth_headers,
+        )
     assert doc_resp_after_delete.json()["reply"] == NO_DOCUMENTS_REPLY
 
 

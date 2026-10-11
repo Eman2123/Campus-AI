@@ -7,6 +7,7 @@ that names that subject, and the Document Agent should be able to scope
 its own retrieval down to a named subject.
 """
 import uuid
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 
 
@@ -83,14 +84,17 @@ def test_document_agent_scopes_retrieval_to_a_named_subject(client, auth_headers
         # "chem" this run — nothing to assert against.
         return
 
-    resp = client.post(
-        "/api/chat",
-        json={
-            "message": "using my chemistry notes, what do they cover?",
-            "session_id": f"day24-{uuid.uuid4()}",
-        },
-        headers=auth_headers,
-    )
+    # Pinned: this test is about the downstream agent, not about how the
+    # keyword fallback classifies the message when no AIML_API_KEY is set.
+    with patch("app.agents.supervisor.classify_intent", return_value="document"):
+        resp = client.post(
+            "/api/chat",
+            json={
+                "message": "using my chemistry notes, what do they cover?",
+                "session_id": f"day24-{uuid.uuid4()}",
+            },
+            headers=auth_headers,
+        )
     assert resp.status_code == 200
     body = resp.json()
     assert body["agent_used"] == "document"

@@ -7,6 +7,7 @@ same pattern as test_document_agent.py, since there's no standalone
 event loop we can safely drive the async DB write from otherwise.
 """
 import uuid
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 
 from app.agents.planner import (
@@ -46,11 +47,14 @@ def test_build_study_sessions_returns_empty_when_due_date_is_too_soon():
 
 
 def test_planner_agent_asks_for_a_date_when_none_given(client, auth_headers):
-    resp = client.post(
-        "/api/chat",
-        json={"message": "help me get better at studying in general", "session_id": f"day19-{uuid.uuid4()}"},
-        headers=auth_headers,
-    )
+    # Pinned: this test is about the Planner's reply, not about how the keyword
+    # fallback classifies this message when no AIML_API_KEY is set.
+    with patch("app.agents.supervisor.classify_intent", return_value="planner"):
+        resp = client.post(
+            "/api/chat",
+            json={"message": "help me get better at studying in general", "session_id": f"day19-{uuid.uuid4()}"},
+            headers=auth_headers,
+        )
     assert resp.status_code == 200
     body = resp.json()
     assert body["intent"] == "planner"
