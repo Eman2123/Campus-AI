@@ -26,24 +26,32 @@ for _var, _value in {
 }.items():
     os.environ[_var] = _value
 
-if os.environ.get("TEST_DATABASE_URL"):
-    os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
-else:
-    _db = os.environ.get("DATABASE_URL")
-    if _db is None:
-        try:  # DATABASE_URL may only live in .env
-            from dotenv import dotenv_values
+def _from_dotenv(name: str) -> str | None:
+    """Real environment variables win; otherwise read the value from `.env`.
+    (pydantic-settings reads `.env` for the app too, but only later, after
+    this guard has already decided, so the guard has to look there itself.)"""
+    if os.environ.get(name):
+        return os.environ[name]
+    try:
+        from dotenv import dotenv_values
 
-            _db = dotenv_values(".env").get("DATABASE_URL")
-        except ImportError:
-            _db = None
+        return dotenv_values(".env").get(name) or None
+    except ImportError:
+        return None
+
+
+_test_db = _from_dotenv("TEST_DATABASE_URL")
+if _test_db:
+    os.environ["DATABASE_URL"] = _test_db
+else:
+    _db = _from_dotenv("DATABASE_URL")
     _local = _db and any(h in _db for h in ("@localhost", "@127.0.0.1", "@[::1]"))
     if _db and not _local and os.environ.get("ALLOW_TESTS_ON_DEV_DB") != "1":
         raise SystemExit(
             "\nRefusing to run tests: DATABASE_URL points at a remote database and the "
             "tests would fill it with test users and documents.\n"
-            "Set TEST_DATABASE_URL to a separate (throwaway) database, e.g. a Neon branch, "
-            "or set ALLOW_TESTS_ON_DEV_DB=1 if you really mean it.\n"
+            "Add TEST_DATABASE_URL=... to backend/.env (a separate, throwaway database, "
+            "e.g. a Neon branch), or set ALLOW_TESTS_ON_DEV_DB=1 if you really mean it.\n"
         )
 
 # Only a safety-net default, so `pytest` with no .env at all doesn't crash at import.
