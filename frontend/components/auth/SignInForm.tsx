@@ -14,7 +14,9 @@ import { PasswordField } from "./PasswordField";
 
 export function SignInForm() {
   const router = useRouter();
-  const justReset = useSearchParams().get("reset") === "1";
+  const params = useSearchParams();
+  const justReset = params.get("reset") === "1";
+  const expired = params.get("expired") === "1";
   useRedirectIfSignedIn();
 
   const [email, setEmail] = useState("");
@@ -44,6 +46,7 @@ export function SignInForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
       {justReset && <FormNotice>Password updated. Sign in with your new password.</FormNotice>}
+      {expired && !justReset && <FormNotice>Your session expired. Please sign in again.</FormNotice>}
       <FormError message={error} />
       <PixelInput
         label="Email"

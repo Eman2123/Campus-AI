@@ -5,7 +5,15 @@ from app.core.config import settings
 
 def get_llm_client() -> OpenAI:
     """AIML API is OpenAI-compatible — same SDK, different base_url."""
-    return OpenAI(api_key=settings.AIML_API_KEY, base_url=settings.AIML_API_BASE_URL)
+    # Explicit timeout + a couple of automatic retries (the SDK backs off on
+    # connection errors, 408/409/429 and 5xx) so a slow or flaky provider
+    # can't hang a chat request forever or fail on the first hiccup.
+    return OpenAI(
+        api_key=settings.AIML_API_KEY,
+        base_url=settings.AIML_API_BASE_URL,
+        timeout=settings.LLM_TIMEOUT_SECONDS,
+        max_retries=settings.LLM_MAX_RETRIES,
+    )
 
 
 def chat_completion(messages: list[dict], model: str | None = None, temperature: float = 0.3) -> str:

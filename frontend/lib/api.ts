@@ -1,5 +1,26 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+export const TOKEN_STORAGE_KEY = "campus-ai:token";
+
+/**
+ * An authenticated request that comes back 401 means the stored token is
+ * expired or revoked: drop it and send the person to sign in, instead of
+ * leaving every screen showing a confusing error. Only called when a token
+ * was actually sent, so a wrong password on /signin (also 401) is untouched.
+ */
+export function handleSessionExpired(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // storage unavailable; nothing to clear
+  }
+  if (!window.location.pathname.startsWith("/signin")) {
+    window.location.assign("/signin?expired=1");
+  }
+}
+
 export class ApiError extends Error {
   status: number;
 
@@ -41,6 +62,8 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   } catch {
     throw new ApiError("Can't reach the server. Check your connection and try again.", 0);
   }
+
+  if (res.status === 401 && token) handleSessionExpired();
 
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;

@@ -22,6 +22,20 @@ def validate_upload(filename: str, size_bytes: int) -> None:
         raise ValueError(f"File too large ({size_bytes} bytes). Max is {MAX_FILE_SIZE_BYTES} bytes.")
 
 
+def validate_content(filename: str, content: bytes) -> None:
+    """Checks the bytes actually look like the type the extension claims, so
+    a renamed executable or random blob can't be stored as a 'PDF'."""
+    ext = os.path.splitext(filename)[1].lower()
+    if not content:
+        raise ValueError("The file is empty.")
+    if ext == ".pdf" and not content.startswith(b"%PDF"):
+        raise ValueError("This doesn't look like a valid PDF file.")
+    if ext == ".docx" and not content.startswith(b"PK"):
+        raise ValueError("This doesn't look like a valid Word (.docx) file.")
+    if ext in {".txt", ".md"} and b"\x00" in content[:8192]:
+        raise ValueError("This doesn't look like a plain-text file.")
+
+
 def save_file(user_id: str, filename: str, content: bytes) -> str:
     """Saves the file to disk and returns its storage_path (relative to
     UPLOAD_DIR — stored in the DB, not an absolute path, so moving the
@@ -29,6 +43,7 @@ def save_file(user_id: str, filename: str, content: bytes) -> str:
     a data migration for existing rows beyond re-pointing the reader).
     """
     validate_upload(filename, len(content))
+    validate_content(filename, content)
 
     ext = os.path.splitext(filename)[1].lower()
     unique_name = f"{uuid.uuid4()}{ext}"
