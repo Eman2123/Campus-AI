@@ -9,7 +9,16 @@ from alembic import context
 
 from app.core.config import settings
 from app.core.database import Base
-from app.models import User, Session, Message, Document, DocumentChunk, Schedule  # noqa: F401 — registers tables on Base.metadata
+from app.models import (  # noqa: F401 — registers tables on Base.metadata
+    User,
+    Session,
+    Message,
+    Document,
+    DocumentChunk,
+    Schedule,
+    AgentCallLog,
+    PasswordResetToken,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

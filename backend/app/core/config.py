@@ -51,6 +51,22 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24h
+    # "Remember me" on the sign-in form — a longer-lived token for the same
+    # JWT flow. There's no refresh-token machinery in this app, so this is
+    # simply the whole token's lifetime when the box is ticked.
+    REMEMBER_ME_EXPIRE_DAYS: int = 30
+
+    # Password reset — the emailed link points at the frontend's
+    # /reset-password page, and the single-use token behind it expires
+    # after this many minutes.
+    FRONTEND_URL: str = "http://localhost:3000"
+    PASSWORD_RESET_EXPIRE_MINUTES: int = 30
+
+    # "Continue with Google" — the OAuth 2.0 *Web client ID* from Google
+    # Cloud Console (same value the frontend gets as
+    # NEXT_PUBLIC_GOOGLE_CLIENT_ID). Leave blank and POST /api/auth/google
+    # answers 503, so the feature is simply off until it's configured.
+    GOOGLE_CLIENT_ID: str = ""
 
     # Email (Day 20) — Resend's transactional API. SendGrid was the PRD's
     # documented alternative; picking one concretely here follows the same

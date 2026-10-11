@@ -3,6 +3,8 @@ export type { PixelButtonProps } from "./PixelButton";
 export { PixelCard } from "./PixelCard";
 export { PixelBadge } from "./PixelBadge";
 export { PixelFrame } from "./PixelFrame";
+export { PixelInput } from "./PixelInput";
+export { PixelCheckbox } from "./PixelCheckbox";
 export { PixelSection } from "./PixelSection";
 export type { SectionBg } from "./PixelSection";
 export { PixelSectionHeading } from "./PixelSectionHeading";
