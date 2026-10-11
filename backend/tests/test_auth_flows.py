@@ -5,6 +5,7 @@ JWTs. The only things replaced are the outside world — the email provider
 and Google's tokeninfo endpoint.
 """
 import asyncio
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -17,7 +18,12 @@ from app.core.config import settings
 from app.core.google_auth import GoogleAuthError, GoogleProfile
 from app.core.security import decode_access_token
 
-GOOD_PASSWORD = "testpass123"
+# Generated per run so no password literal lives in the repo (secret scanners
+# flag hardcoded ones, even in tests).
+GOOD_PASSWORD = f"Tp-{secrets.token_urlsafe(12)}"
+NEW_PASSWORD = f"Np-{secrets.token_urlsafe(12)}"
+FIRST_PASSWORD = f"F1-{secrets.token_urlsafe(12)}"
+SECOND_PASSWORD = f"S2-{secrets.token_urlsafe(12)}"
 
 
 def _email() -> str:
@@ -130,11 +136,11 @@ def test_reset_password_full_flow(client, outbox):
     client.post("/api/auth/forgot-password", json={"email": email})
     token = _token_from(outbox[0]["body"])
 
-    reset = client.post("/api/auth/reset-password", json={"token": token, "password": "brand-new-pass-9"})
+    reset = client.post("/api/auth/reset-password", json={"token": token, "password": NEW_PASSWORD})
     assert reset.status_code == 200, reset.text
 
     old = client.post("/api/auth/signin", json={"email": email, "password": GOOD_PASSWORD})
-    new = client.post("/api/auth/signin", json={"email": email, "password": "brand-new-pass-9"})
+    new = client.post("/api/auth/signin", json={"email": email, "password": NEW_PASSWORD})
     assert old.status_code == 401
     assert new.status_code == 200
 
@@ -144,13 +150,13 @@ def test_reset_link_works_only_once(client, outbox):
     client.post("/api/auth/forgot-password", json={"email": email})
     token = _token_from(outbox[0]["body"])
 
-    first = client.post("/api/auth/reset-password", json={"token": token, "password": "first-new-pass-1"})
-    second = client.post("/api/auth/reset-password", json={"token": token, "password": "second-new-pass-2"})
+    first = client.post("/api/auth/reset-password", json={"token": token, "password": FIRST_PASSWORD})
+    second = client.post("/api/auth/reset-password", json={"token": token, "password": SECOND_PASSWORD})
     assert first.status_code == 200
     assert second.status_code == 400
 
     # ...and the second attempt must not have changed the password.
-    still_first = client.post("/api/auth/signin", json={"email": email, "password": "first-new-pass-1"})
+    still_first = client.post("/api/auth/signin", json={"email": email, "password": FIRST_PASSWORD})
     assert still_first.status_code == 200
 
 
@@ -160,8 +166,8 @@ def test_requesting_a_new_link_retires_the_old_one(client, outbox):
     client.post("/api/auth/forgot-password", json={"email": email})
     old_token, new_token = (_token_from(m["body"]) for m in outbox)
 
-    stale = client.post("/api/auth/reset-password", json={"token": old_token, "password": "whatever-123"})
-    fresh = client.post("/api/auth/reset-password", json={"token": new_token, "password": "whatever-123"})
+    stale = client.post("/api/auth/reset-password", json={"token": old_token, "password": NEW_PASSWORD})
+    fresh = client.post("/api/auth/reset-password", json={"token": new_token, "password": NEW_PASSWORD})
     assert stale.status_code == 400
     assert fresh.status_code == 200
 
@@ -172,14 +178,14 @@ def test_expired_reset_link_is_rejected(client, outbox):
         client.post("/api/auth/forgot-password", json={"email": email})
     token = _token_from(outbox[0]["body"])
 
-    resp = client.post("/api/auth/reset-password", json={"token": token, "password": "brand-new-pass-9"})
+    resp = client.post("/api/auth/reset-password", json={"token": token, "password": NEW_PASSWORD})
     assert resp.status_code == 400
     assert "expired" in resp.json()["detail"]
 
 
 def test_made_up_reset_token_is_rejected(client):
     resp = client.post(
-        "/api/auth/reset-password", json={"token": "x" * 43, "password": "brand-new-pass-9"}
+        "/api/auth/reset-password", json={"token": "x" * 43, "password": NEW_PASSWORD}
     )
     assert resp.status_code == 400
 
@@ -213,7 +219,7 @@ def test_disabled_account_gets_no_reset_email_and_cannot_use_an_old_link(client,
     outbox.clear()
     client.post("/api/auth/forgot-password", json={"email": student_email})
     assert outbox == []  # nothing sent to a disabled account
-    reset = client.post("/api/auth/reset-password", json={"token": link_token, "password": "brand-new-pass-9"})
+    reset = client.post("/api/auth/reset-password", json={"token": link_token, "password": NEW_PASSWORD})
     assert reset.status_code == 400  # a link issued before disabling no longer works
 
 
