@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 
 from dateutil import parser as dateutil_parser
@@ -157,7 +158,24 @@ async def find_related_documents(user_id: str, title: str, topic: str) -> list[s
         subjects = [row[0] for row in result.all()]
 
     haystack = f"{title} {topic}".lower()
-    return [subject for subject in subjects if subject.lower() in haystack]
+    return [subject for subject in subjects if subject_matches(subject, haystack)]
+
+
+def subject_matches(subject: str, haystack: str) -> bool:
+    """True when a document's subject tag belongs to the deadline text.
+
+    The File Organizer's tag is free text from an LLM ("Organic Chemistry"),
+    while the student writes "my Chemistry final" — so a plain
+    `subject in haystack` misses it. Match the whole tag, or any whole word
+    of it that is long enough to mean something (so "Organic Chemistry"
+    matches "chemistry final", but a short word like "of" never decides it).
+    """
+    subject = subject.lower().strip()
+    haystack = haystack.lower()
+    if subject and re.search(rf"\b{re.escape(subject)}\b", haystack):
+        return True
+    haystack_words = set(re.findall(r"[a-z0-9]+", haystack))
+    return any(len(word) >= 4 and word in haystack_words for word in re.findall(r"[a-z0-9]+", subject))
 
 
 def _format_reply(
