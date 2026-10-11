@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import String, DateTime, Boolean
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -26,6 +26,11 @@ class User(Base):
     # rely on get_current_user re-reading the row from the DB on every
     # request rather than trusting anything baked into the JWT.
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Settings-page choices (reminder lead time, digest window, week start,
+    # ...). Stored sparse: only keys the student has changed. Defaults are
+    # applied by app.schemas.preferences.Preferences, so a new setting never
+    # needs a data migration.
+    preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

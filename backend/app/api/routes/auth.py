@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -12,7 +12,9 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.email import send_email
 from app.core.google_auth import GoogleAuthError, verify_google_id_token
+from app.core.google_drive import delete_file_from_drive
 from app.core.rate_limit import RateLimitByIP
+from app.core.storage import delete_file
 from app.core.security import (
     create_access_token,
     generate_reset_token,
@@ -20,8 +22,14 @@ from app.core.security import (
     hash_reset_token,
     verify_password,
 )
+from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
+from app.models.message import Message
 from app.models.password_reset_token import PasswordResetToken
+from app.models.schedule import Schedule
+from app.models.session import Session
 from app.models.user import User
+from app.schemas.preferences import DeleteAccountRequest, NameUpdate, Preferences, PreferencesUpdate
 from app.schemas.auth import (
     ForgotPasswordRequest,
     GoogleAuthRequest,
@@ -254,3 +262,71 @@ async def google_sign_in(payload: GoogleAuthRequest, db: AsyncSession = Depends(
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_me(
+    payload: NameUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change the display name. Email and password have their own flows."""
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Name can't be blank")
+    current_user.name = name
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.get("/me/preferences", response_model=Preferences)
+async def get_preferences(current_user: User = Depends(get_current_user)):
+    return Preferences(**(current_user.preferences or {}))
+
+
+@router.patch("/me/preferences", response_model=Preferences)
+async def update_preferences(
+    payload: PreferencesUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Merge into the stored sparse dict, then validate the result as a whole.
+    merged = {**(current_user.preferences or {}), **payload.model_dump(exclude_unset=True, exclude_none=True)}
+    prefs = Preferences(**merged)
+    current_user.preferences = merged  # reassign (not mutate) so SQLAlchemy sees the JSONB change
+    await db.commit()
+    return prefs
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_me(
+    payload: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently removes the account and everything under it: chats,
+    documents (stored files, Drive copies and embeddings), schedule and
+    reset links. Child rows are deleted explicitly rather than relying on
+    ORM cascades, which don't run reliably under an async session."""
+    if payload.confirm_email.lower() != current_user.email.lower():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That email doesn't match your account.")
+
+    user_id = current_user.id
+    docs = (await db.execute(select(Document).where(Document.user_id == user_id))).scalars().all()
+    for document in docs:
+        delete_file(document.storage_path)
+        if document.drive_file_id:
+            delete_file_from_drive(document.drive_file_id)  # best-effort, never raises
+
+    doc_ids = select(Document.id).where(Document.user_id == user_id)
+    session_ids = select(Session.id).where(Session.user_id == user_id)
+    await db.execute(delete(DocumentChunk).where(DocumentChunk.document_id.in_(doc_ids)))
+    await db.execute(delete(Document).where(Document.user_id == user_id))
+    await db.execute(delete(Message).where(Message.session_id.in_(session_ids)))
+    await db.execute(delete(Session).where(Session.user_id == user_id))
+    await db.execute(delete(Schedule).where(Schedule.user_id == user_id))
+    await db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
+    await db.execute(delete(User).where(User.id == user_id))
+    await db.commit()
+    logger.info("account deleted: user=%s", user_id)
