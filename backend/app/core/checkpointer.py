@@ -110,3 +110,17 @@ async def attach_postgres_checkpointer(graph) -> None:
             "Sessions will NOT survive a process restart.",
             exc,
         )
+
+async def delete_thread_checkpoints(thread_ids) -> None:
+    """Best-effort removal of LangGraph checkpoint data for the given chat
+    threads (thread_id == the chat's session UUID). Called when chats or an
+    account are deleted so no conversation state is left orphaned. Never
+    raises: a checkpoint store hiccup must not block the user's delete."""
+    from app.agents.graph import campus_ai_graph
+
+    saver = campus_ai_graph.checkpointer
+    for thread_id in thread_ids:
+        try:
+            await saver.adelete_thread(str(thread_id))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("could not delete checkpoints for thread %s: %s", thread_id, exc)
