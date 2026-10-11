@@ -14,6 +14,7 @@ from unittest.mock import patch
 from icalendar import Calendar
 
 from app.agents.document import NO_DOCUMENTS_REPLY
+from tests.helpers import wait_for_document
 
 
 def test_full_automation_journey(client, auth_headers):
@@ -30,7 +31,7 @@ def test_full_automation_journey(client, auth_headers):
         headers=auth_headers,
     )
     assert upload_resp.status_code == 201, upload_resp.text
-    document = upload_resp.json()
+    document = wait_for_document(client, auth_headers, upload_resp.json()["id"])
     assert document["embedding_status"] == "ready"
     assert document["organize_status"] in ("organized", "skipped")
     assert document["subject"] is not None

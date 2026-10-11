@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,7 +19,12 @@ PREVIEW_LENGTH = 80
 
 
 @router.get("/sessions", response_model=list[SessionOut])
-async def list_sessions(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_sessions(
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """Day 31 — backs the history sidebar. Each session is previewed by
     its first user message (what the student actually asked, more
     useful for recognizing a conversation than a timestamp alone) and
@@ -50,7 +55,7 @@ async def list_sessions(current_user: User = Depends(get_current_user), db: Asyn
         )
 
     out.sort(key=lambda s: s.last_message_at, reverse=True)
-    return out
+    return out[offset : offset + limit]
 
 
 @router.get("/sessions/{session_id}/messages", response_model=list[MessageOut])

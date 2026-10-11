@@ -9,6 +9,7 @@ test environments, so Drive-dependent assertions are written to hold
 under both the stub ("skipped") and a real Drive connection ("organized").
 """
 from app.core.subject_classifier import classify_subject_heuristic
+from tests.helpers import wait_for_document
 
 
 def test_classify_subject_heuristic_matches_known_keywords():
@@ -32,12 +33,13 @@ def _upload(client, headers, filename: str, text: str):
 
 
 def test_upload_classifies_subject_and_resolves_organize_status(client, auth_headers):
-    body = _upload(
+    uploaded = _upload(
         client,
         auth_headers,
         "chemistry-notes.txt",
         " ".join(["Organic chemistry reactions and molecule structure notes."] * 20),
     )
+    body = wait_for_document(client, auth_headers, uploaded["id"])
     assert body["organize_status"] in ("organized", "skipped")
     assert body["subject"] is not None
     assert "chem" in body["subject"].lower()
