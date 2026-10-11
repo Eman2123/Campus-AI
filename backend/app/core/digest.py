@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.dates import format_short_date
 from app.core.email import send_email
 from app.models.schedule import Schedule
 from app.models.user import User
@@ -19,7 +20,7 @@ def format_digest_email(items: list[Schedule]) -> tuple[str, str]:
     lines = ["Here's what's coming up:", ""]
     for item in items:
         kind = "Deadline" if item.source == "deadline" else "Study session"
-        lines.append(f"- {item.due_date.strftime('%a %b %-d')}: {item.title} ({kind})")
+        lines.append(f"- {format_short_date(item.due_date)}: {item.title} ({kind})")
     lines.append("")
     lines.append("\u2014 Campus AI")
     return subject, "\n".join(lines)
