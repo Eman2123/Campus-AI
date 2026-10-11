@@ -10,6 +10,7 @@ from app.agents.state import AgentState
 from app.agents.supervisor import get_last_user_text
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.dates import format_long_date, format_short_date
 from app.core.llm import chat_completion
 from app.models.document import Document
 from app.models.schedule import Schedule
@@ -166,12 +167,12 @@ def _format_reply(
     saved: bool,
     related_subjects: list[str],
 ) -> str:
-    lines = [f"Got it — I've noted **{title}** due {due_date.strftime('%A, %B %-d, %Y')}."]
+    lines = [f"Got it — I've noted **{title}** due {format_long_date(due_date)}."]
 
     if sessions:
         lines.append("\nHere's a backward study plan leading up to it:")
         for session in sessions:
-            lines.append(f"- {session['date'].strftime('%a %b %-d')}: {session['task']}")
+            lines.append(f"- {format_short_date(session['date'])}: {session['task']}")
     elif due_date.date() < datetime.now(timezone.utc).date():
         lines.append("That date's already passed, so I haven't scheduled any study sessions for it.")
     else:
