@@ -41,3 +41,10 @@ dependencies = [
 
 [tool.fastapi]
 entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+# `live` tests call the real LLM / embedding API (needs AIML_API_KEY in .env,
+# costs a little, can be slow or vary run to run). Skipped by default; run
+# them with:  pytest -m live
+markers = ["live: calls the real LLM/embedding API; run with `pytest -m live`"]
+addopts = "-m 'not live'"

@@ -1,9 +1,52 @@
 import os
+import sys
 
-# Only a safety-net default — if your `.env` already has DATABASE_URL
-# and JWT_SECRET_KEY (it should, from Day 1), those are used as-is:
-# pydantic-settings reads .env automatically. This just stops an
-# import-time crash for someone running `pytest` with no .env at all.
+# ---------------------------------------------------------------------------
+# Test isolation. This block runs BEFORE the app (and its settings) is
+# imported, and environment variables beat `.env`, so it is what decides how
+# the whole suite behaves, whatever is in your `.env`:
+#
+#   * No LLM / embedding / LangSmith calls. With AIML_API_KEY empty the app
+#     uses its built-in offline paths (keyword intent classifier, fallback
+#     embeddings, stub agent replies), so tests are fast, free, deterministic
+#     and never flake on a model's mood. The tests that really need the
+#     model are marked `live` and only run with `pytest -m live`.
+#   * Never the development database. Tests create users, documents and
+#     schedules; point them at their own database with TEST_DATABASE_URL.
+# ---------------------------------------------------------------------------
+LIVE_RUN = os.environ.get("RUN_LIVE_TESTS") == "1" or "live" in sys.argv
+
+if not LIVE_RUN:
+    os.environ["AIML_API_KEY"] = ""
+for _var, _value in {
+    "LANGCHAIN_TRACING_V2": "false",
+    "LANGSMITH_TRACING": "false",
+    "LANGCHAIN_API_KEY": "",
+    "LANGSMITH_API_KEY": "",
+}.items():
+    os.environ[_var] = _value
+
+if os.environ.get("TEST_DATABASE_URL"):
+    os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
+else:
+    _db = os.environ.get("DATABASE_URL")
+    if _db is None:
+        try:  # DATABASE_URL may only live in .env
+            from dotenv import dotenv_values
+
+            _db = dotenv_values(".env").get("DATABASE_URL")
+        except ImportError:
+            _db = None
+    _local = _db and any(h in _db for h in ("@localhost", "@127.0.0.1", "@[::1]"))
+    if _db and not _local and os.environ.get("ALLOW_TESTS_ON_DEV_DB") != "1":
+        raise SystemExit(
+            "\nRefusing to run tests: DATABASE_URL points at a remote database and the "
+            "tests would fill it with test users and documents.\n"
+            "Set TEST_DATABASE_URL to a separate (throwaway) database, e.g. a Neon branch, "
+            "or set ALLOW_TESTS_ON_DEV_DB=1 if you really mean it.\n"
+        )
+
+# Only a safety-net default, so `pytest` with no .env at all doesn't crash at import.
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
 
 import uuid
