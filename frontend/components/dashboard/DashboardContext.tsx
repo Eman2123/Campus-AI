@@ -3,8 +3,23 @@
 import { createContext, useContext } from "react";
 
 import type { AuthUser } from "@/lib/auth";
+import type { DocumentItem, ScheduleItem, SessionSummary } from "@/lib/dashboard-api";
 
-type DashboardCtx = { user: AuthUser; signOut: () => void };
+export type DashboardCtx = {
+  user: AuthUser;
+  token: string;
+  signOut: () => void;
+  sessions: SessionSummary[];
+  refreshSessions: () => Promise<void>;
+  docs: DocumentItem[];
+  refreshDocs: () => Promise<void>;
+  schedule: ScheduleItem[];
+  refreshSchedule: () => Promise<void>;
+  activeSessionId: string;
+  openSession: (id: string) => void;
+  startNewChat: () => void;
+  dataError: string | null;
+};
 
 const Ctx = createContext<DashboardCtx | null>(null);
 

@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { PixelBadge, PixelButton, PixelCard } from "@/components/pixel";
+import { friendlyError } from "@/lib/api";
+import { deleteDocument, digestMe, downloadIcs, remindMe } from "@/lib/dashboard-api";
 import { cn } from "@/lib/cn";
 
 import { useDashboard } from "./DashboardContext";
@@ -64,8 +66,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function SettingsView() {
-  const { user, signOut } = useDashboard();
-  const [name, setName] = useState(user.name ?? "");
+  const { user, token, signOut, docs, refreshDocs } = useDashboard();
+  const name = user.name ?? "";
   const [theme, setTheme] = useState("Light");
   const [week, setWeek] = useState("Monday");
   const [remind, setRemind] = useState("48 hours");
@@ -75,8 +77,23 @@ export function SettingsView() {
   });
   const [note, setNote] = useState("");
   const toggle = (k: string) => setOn((s) => ({ ...s, [k]: !s[k] }));
-  // TODO: persist these through the backend; today they only live in this page's state.
-  const demo = (what: string) => () => setNote(`${what} is not connected yet.`);
+  // Switches, selects, theme and week start are not stored by the backend yet; they only live in this page.
+  const demo = (what: string) => () => setNote(`${what} is not available yet: the backend has no endpoint for it.`);
+  async function run(job: () => Promise<string>) {
+    try {
+      setNote(await job());
+    } catch (err) {
+      setNote(friendlyError(err));
+    }
+  }
+  const deleteAll = () =>
+    run(async () => {
+      if (docs.length === 0) return "You have no documents to delete.";
+      if (!window.confirm(`Delete all ${docs.length} document(s)? This cannot be undone.`)) return "";
+      for (const d of docs) await deleteDocument(token, d.id);
+      await refreshDocs();
+      return "All documents deleted.";
+    });
 
   return (
     <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
@@ -85,9 +102,7 @@ export function SettingsView() {
       </header>
       <div className="mx-auto max-w-3xl px-5 pb-16">
         <Section title="Profile">
-          <Row title="Name">
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-56 border-pixel border-brand-black px-2 py-1.5 text-sm" />
-          </Row>
+          <Row title="Name" desc="Changing your name isn't available yet."><span className="text-sm">{name || "Not set"}</span></Row>
           <Row title="Email" desc="Used to sign in and for reminders. Can't be changed here."><span className="text-sm">{user.email}</span></Row>
           <Row title="Password" desc="We'll email you a link to set a new one."><PixelButton size="sm" variant="secondary" href="/forgot-password">Send reset link</PixelButton></Row>
         </Section>
@@ -102,16 +117,18 @@ export function SettingsView() {
           <Row title="Remind me before"><Select label="Remind me before" options={["24 hours", "48 hours", "72 hours"]} value={remind} onChange={setRemind} /></Row>
           <Row title="Daily digest" desc="One morning email with what's coming up."><Switch on={on.digest} onChange={() => toggle("digest")} label="Daily digest" /></Row>
           <Row title="Digest looks ahead"><Select label="Digest looks ahead" options={["3 days", "7 days", "14 days"]} value={ahead} onChange={setAhead} /></Row>
+          <Row title="Send a reminder now" desc="Emails you your upcoming deadlines right away."><PixelButton size="sm" variant="secondary" onClick={() => run(async () => { const r = await remindMe(token); return r.reminders_sent ? `Sent ${r.reminders_sent} reminder email(s).` : "No deadlines in the reminder window right now."; })}>Send reminder</PixelButton></Row>
+          <Row title="Send today's digest now" desc="Emails you what is coming up."><PixelButton size="sm" variant="secondary" onClick={() => run(async () => { const r = await digestMe(token); return r.digests_sent ? "Digest sent to your email." : "Nothing to put in a digest right now."; })}>Send digest</PixelButton></Row>
         </Section>
 
         <Section title="Calendar">
           <Row title="Week starts on"><Seg options={["Monday", "Sunday"]} value={week} onChange={setWeek} /></Row>
-          <Row title="Export your schedule" desc="A .ics file for Google Calendar, Apple Calendar or Outlook."><PixelButton size="sm" variant="secondary" onClick={demo(".ics export")}>Export .ics</PixelButton></Row>
+          <Row title="Export your schedule" desc="A .ics file for Google Calendar, Apple Calendar or Outlook."><PixelButton size="sm" variant="secondary" onClick={() => run(async () => { await downloadIcs(token); return "Downloaded campus-ai-schedule.ics"; })}>Export .ics</PixelButton></Row>
         </Section>
 
         <Section title="Documents">
           <Row title="File uploads into Google Drive" desc={'Sorted by subject into a "Campus AI" folder.'}><Switch on={on.drive} onChange={() => toggle("drive")} label="File uploads into Google Drive" /></Row>
-          <Row title="Delete all documents" desc="Removes your uploads and what the AI learned from them."><PixelButton size="sm" variant="secondary" onClick={demo("Deleting documents")}>Delete documents</PixelButton></Row>
+          <Row title="Delete all documents" desc="Removes your uploads and what the AI learned from them."><PixelButton size="sm" variant="secondary" onClick={deleteAll}>Delete documents</PixelButton></Row>
         </Section>
 
         <Section title="Chat and voice">
