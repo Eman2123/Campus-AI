@@ -7,10 +7,13 @@ import { useEffect, useState, type ReactNode } from "react";
 import { PixelBadge, PixelButton } from "@/components/pixel";
 import { docBadge } from "@/lib/dashboard-data";
 import { cn } from "@/lib/cn";
+import { useDarkMode } from "@/lib/theme";
 
+import { DocDeleteButton } from "./DocDeleteButton";
 import { useDashboard } from "./DashboardContext";
 
 const BASE_NAV = [
+  { href: "/dashboard/home", label: "Home" },
   { href: "/dashboard", label: "Chat" },
   { href: "/dashboard/calendar", label: "Calendar" },
   { href: "/dashboard/settings", label: "Settings" },
@@ -67,7 +70,10 @@ function SidebarLists({ onNavigate }: { onNavigate?: () => void }) {
             return (
               <li key={d.id} className="flex items-center justify-between gap-2 border-2 border-brand-black bg-brand-white px-2 py-1.5 text-xs">
                 <span className="truncate">{d.filename}</span>
-                <PixelBadge tone={b.tone}>{b.label}</PixelBadge>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <PixelBadge tone={b.tone}>{b.label}</PixelBadge>
+                  <DocDeleteButton id={d.id} filename={d.filename} />
+                </span>
               </li>
             );
           })}
@@ -81,6 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, signOut, dataError } = useDashboard();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const dark = useDarkMode();
   const displayName = user.name || user.email;
   const NAV = user.role === "admin" ? [...BASE_NAV, ADMIN_NAV] : BASE_NAV;
   const onChat = pathname === "/dashboard";
@@ -97,7 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [drawerOpen]);
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-brand-white font-sans text-brand-black md:flex-row">
+    <div className={cn("flex h-[100dvh] flex-col bg-brand-white font-sans text-brand-black md:flex-row", dark && "app-dark")}>
       {/* Mobile nav */}
       <nav className="flex gap-2 overflow-x-auto border-b-pixel border-brand-black bg-brand-yellow-soft px-3 py-2 md:hidden">
         {onChat && (

@@ -33,12 +33,22 @@ export function CalendarView() {
   const TODAY = useMemo(() => new Date(), []);
   const EVENTS = useMemo(() => toEvents(schedule), [schedule]);
   const [busy, setBusy] = useState(false);
-  const [cur, setCur] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [view, setView] = useState<"month" | "list">("month");
+  // `anchor` is the day the calendar is focused on: month view shows its month, week view its week.
+  const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
+  const [view, setView] = useState<"month" | "week" | "list">("month");
   const [note, setNote] = useState("");
 
-  const y = cur.getFullYear();
-  const m = cur.getMonth();
+  const y = anchor.getFullYear();
+  const m = anchor.getMonth();
+  const weekStart = new Date(y, m, anchor.getDate() - ((anchor.getDay() + 6) % 7)); // Monday first
+  const weekDays = Array.from({ length: 7 }, (_, k) => new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + k));
+  const weekEnd = weekDays[6];
+  const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const title = view === "week" ? `${fmt(weekStart)} – ${fmt(weekEnd)} ${weekEnd.getFullYear()}` : `${MONTHS[m]} ${y}`;
+
+  function shift(dir: -1 | 1) {
+    setAnchor(view === "week" ? new Date(y, m, anchor.getDate() + 7 * dir) : new Date(y, m + dir, 1));
+  }
   const offset = (new Date(y, m, 1).getDay() + 6) % 7; // Monday first
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const cells = Math.ceil((offset + daysInMonth) / 7) * 7;
@@ -61,13 +71,13 @@ export function CalendarView() {
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b-pixel border-brand-black bg-brand-white px-5 py-3">
           <div className="flex items-center gap-2">
-            <PixelButton size="sm" variant="secondary" aria-label="Previous month" onClick={() => setCur(new Date(y, m - 1, 1))}>‹</PixelButton>
-            <h1 className="min-w-44 text-center font-pixel text-2xl font-bold">{MONTHS[m]} {y}</h1>
-            <PixelButton size="sm" variant="secondary" aria-label="Next month" onClick={() => setCur(new Date(y, m + 1, 1))}>›</PixelButton>
-            <PixelButton size="sm" onClick={() => setCur(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))}>Today</PixelButton>
+            <PixelButton size="sm" variant="secondary" aria-label={view === "week" ? "Previous week" : "Previous month"} disabled={view === "list"} onClick={() => shift(-1)}>‹</PixelButton>
+            <h1 className="min-w-44 text-center font-pixel text-xl font-bold sm:text-2xl">{view === "list" ? "All events" : title}</h1>
+            <PixelButton size="sm" variant="secondary" aria-label={view === "week" ? "Next week" : "Next month"} disabled={view === "list"} onClick={() => shift(1)}>›</PixelButton>
+            <PixelButton size="sm" onClick={() => setAnchor(startOfDay(new Date()))}>Today</PixelButton>
           </div>
           <div className="flex border-pixel border-brand-black">
-            {(["month", "list"] as const).map((v) => (
+            {(["month", "week", "list"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
@@ -103,6 +113,28 @@ export function CalendarView() {
                 <span className="flex items-center gap-2"><i className="h-4 w-4 border-2 border-brand-black bg-accent-mint" />Study session</span>
                 <span className="flex items-center gap-2"><i className="h-4 w-4 border-2 border-brand-black bg-accent-coral" />Deadline</span>
                 <span className="flex items-center gap-2"><i className="h-4 w-4 border-2 border-brand-black bg-brand-yellow" />Today</span>
+              </div>
+            </>
+          ) : view === "week" ? (
+            <>
+              <div className="grid grid-cols-1 border-pixel border-brand-black bg-brand-white shadow-pixel sm:grid-cols-7">
+                {weekDays.map((d, k) => {
+                  const today = key(d) === key(TODAY);
+                  const evs = byDate(d);
+                  return (
+                    <div key={k} className={cn("min-h-20 min-w-0 border border-brand-black p-2 text-sm sm:min-h-64", today && "bg-brand-yellow-soft")}>
+                      <p className="flex items-center gap-2 font-pixel text-sm font-semibold sm:block">
+                        <span>{DAYS[k]}</span>{" "}
+                        <span className={cn("inline-block border-2 border-transparent px-1.5", today && "border-brand-black bg-brand-yellow")}>{d.getDate()}</span>
+                      </p>
+                      {evs.length === 0 ? <p className="mt-1 text-xs text-muted-onPaper">Free</p> : evs.map((e) => <EventChip key={e.id} e={e} />)}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex gap-5 text-sm">
+                <span className="flex items-center gap-2"><i className="h-4 w-4 border-2 border-brand-black bg-accent-mint" />Study session</span>
+                <span className="flex items-center gap-2"><i className="h-4 w-4 border-2 border-brand-black bg-accent-coral" />Deadline</span>
               </div>
             </>
           ) : (

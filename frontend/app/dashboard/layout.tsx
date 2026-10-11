@@ -9,6 +9,7 @@ import {
   type DocumentItem,
   type ScheduleItem,
   type SessionSummary,
+  deleteDocument,
   listDocuments,
   listSchedule,
   listSessions,
@@ -42,6 +43,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       setDataError(friendlyError(e));
     }
   }, [token]);
+
+  const removeDocument = useCallback(
+    async (id: string) => {
+      if (!token) return;
+      try {
+        await deleteDocument(token, id);
+        await refreshDocs();
+      } catch (e) {
+        setDataError(friendlyError(e));
+      }
+    },
+    [token, refreshDocs],
+  );
 
   const refreshSchedule = useCallback(async () => {
     if (!token) return;
@@ -84,6 +98,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         refreshSessions,
         docs,
         refreshDocs,
+        removeDocument,
         schedule,
         refreshSchedule,
         activeSessionId,
