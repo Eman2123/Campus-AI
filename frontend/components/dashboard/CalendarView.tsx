@@ -1,15 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { PixelBadge, PixelButton, PixelCard } from "@/components/pixel";
-import { EVENTS, TODAY, type CalEvent } from "@/lib/dashboard-data";
+import { friendlyError } from "@/lib/api";
+import { digestMe, downloadIcs, remindMe } from "@/lib/dashboard-api";
+import { dateKey, startOfDay, toEvents, type CalEvent } from "@/lib/dashboard-data";
 import { cn } from "@/lib/cn";
+
+import { useDashboard } from "./DashboardContext";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const key = dateKey;
 
 function EventChip({ e }: { e: CalEvent }) {
   return (
@@ -25,7 +29,11 @@ function EventChip({ e }: { e: CalEvent }) {
 }
 
 export function CalendarView() {
-  const [cur, setCur] = useState(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1));
+  const { token, schedule } = useDashboard();
+  const TODAY = useMemo(() => new Date(), []);
+  const EVENTS = useMemo(() => toEvents(schedule), [schedule]);
+  const [busy, setBusy] = useState(false);
+  const [cur, setCur] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [view, setView] = useState<"month" | "list">("month");
   const [note, setNote] = useState("");
 
@@ -35,6 +43,18 @@ export function CalendarView() {
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const cells = Math.ceil((offset + daysInMonth) / 7) * 7;
   const byDate = (d: Date) => EVENTS.filter((e) => e.date === key(d));
+  const upcoming = EVENTS.filter((e) => e.at >= startOfDay(TODAY)).slice(0, 6);
+
+  async function run(job: () => Promise<string>) {
+    setBusy(true);
+    try {
+      setNote(await job());
+    } catch (err) {
+      setNote(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -74,7 +94,7 @@ export function CalendarView() {
                   return (
                     <div key={j} className={cn("min-h-16 min-w-0 border border-brand-black p-1.5 text-xs sm:min-h-24 sm:text-sm", outside && "opacity-40", today && "bg-brand-yellow-soft")}>
                       <span className={cn("inline-block border-2 border-transparent px-1.5", today && "border-brand-black bg-brand-yellow")}>{d.getDate()}</span>
-                      {byDate(d).map((e) => <EventChip key={e.title} e={e} />)}
+                      {byDate(d).map((e) => <EventChip key={e.id} e={e} />)}
                     </div>
                   );
                 })}
@@ -87,8 +107,9 @@ export function CalendarView() {
             </>
           ) : (
             <PixelCard className="p-0">
+              {EVENTS.length === 0 && <p className="px-4 py-3 text-sm text-muted-onPaper">Nothing scheduled yet. Ask the planner in chat to build a plan.</p>}
               {EVENTS.map((e) => (
-                <div key={e.title} className="flex items-center justify-between border-b-2 border-brand-black px-4 py-3 last:border-0">
+                <div key={e.id} className="flex items-center justify-between border-b-2 border-brand-black px-4 py-3 last:border-0">
                   <span className="flex items-center gap-3"><PixelBadge tone={e.kind === "deadline" ? "coral" : "mint"}>{e.kind}</PixelBadge>{e.title}</span>
                   <small>{e.date}</small>
                 </div>
@@ -101,18 +122,18 @@ export function CalendarView() {
       <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l-pixel border-brand-black bg-brand-yellow-soft p-4 lg:flex">
         <p className="font-pixel text-lg font-bold">Coming up</p>
         <PixelCard className="p-0">
-          {EVENTS.map((e) => (
-            <div key={e.title} className="flex items-center justify-between border-b-2 border-brand-black px-3 py-2.5 text-sm last:border-0">
+          {upcoming.length === 0 && <p className="px-3 py-2.5 text-sm text-muted-onPaper">Nothing coming up.</p>}
+          {upcoming.map((e) => (
+            <div key={e.id} className="flex items-center justify-between border-b-2 border-brand-black px-3 py-2.5 text-sm last:border-0">
               <span>{e.title}<br /><small className="text-muted-onPaper">{e.date}</small></span>
               <PixelBadge tone={e.kind === "deadline" ? "coral" : "mint"}>{e.kind}</PixelBadge>
             </div>
           ))}
         </PixelCard>
         <p className="mt-2 font-pixel text-lg font-bold">Get notified</p>
-        {/* TODO: wire to the reminders / digest / .ics endpoints on the backend. */}
-        <PixelButton variant="dark" size="sm" onClick={() => setNote("Reminders are not connected yet.")}>Remind me about deadlines</PixelButton>
-        <PixelButton variant="secondary" size="sm" onClick={() => setNote("Email digest is not connected yet.")}>Email me this week&apos;s digest</PixelButton>
-        <PixelButton variant="secondary" size="sm" onClick={() => setNote(".ics export is not connected yet.")}>Export as .ics</PixelButton>
+        <PixelButton variant="dark" size="sm" disabled={busy} onClick={() => run(async () => { const r = await remindMe(token); return r.reminders_sent ? `Sent ${r.reminders_sent} reminder email(s).` : "No deadlines in the reminder window right now."; })}>Remind me about deadlines</PixelButton>
+        <PixelButton variant="secondary" size="sm" disabled={busy} onClick={() => run(async () => { const r = await digestMe(token); return r.digests_sent ? "Digest sent to your email." : "Nothing to put in a digest right now."; })}>Email me this week&apos;s digest</PixelButton>
+        <PixelButton variant="secondary" size="sm" disabled={busy} onClick={() => run(async () => { await downloadIcs(token); return "Downloaded campus-ai-schedule.ics"; })}>Export as .ics</PixelButton>
         {note && <p className="text-xs text-muted-onPaper" role="status">{note}</p>}
       </aside>
     </>

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { PixelBadge } from "@/components/pixel";
-import { CHATS, DOCS } from "@/lib/dashboard-data";
+import { PixelBadge, PixelButton } from "@/components/pixel";
+import { docBadge } from "@/lib/dashboard-data";
 import { cn } from "@/lib/cn";
 
 import { useDashboard } from "./DashboardContext";
@@ -16,16 +16,9 @@ const NAV = [
   { href: "/dashboard/settings", label: "Settings" },
 ];
 
-const dotTone = {
-  mint: "bg-accent-mint",
-  sky: "bg-accent-sky",
-  yellow: "bg-brand-yellow",
-  coral: "bg-accent-coral",
-} as const;
-
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, signOut } = useDashboard();
+  const { user, signOut, sessions, docs, activeSessionId, openSession, startNewChat, dataError } = useDashboard();
   const displayName = user.name || user.email;
 
   return (
@@ -72,31 +65,45 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {pathname === "/dashboard" && (
           <>
+            <PixelButton size="sm" variant="dark" onClick={startNewChat}>+ New chat</PixelButton>
             <p className="mt-2 font-pixel text-xs uppercase tracking-wide text-muted-onPaper">Chats</p>
-            <ul className="flex flex-col gap-1">
-              {CHATS.map((c, i) => (
-                <li
-                  key={c.title}
-                  className={cn(
-                    "flex items-center gap-2 border-2 px-2.5 py-2 text-sm",
-                    i === 0 ? "border-brand-black bg-brand-white font-semibold shadow-pixel-sm" : "border-transparent",
-                  )}
-                >
-                  <span className={cn("h-2.5 w-2.5 shrink-0 border-2 border-brand-black", dotTone[c.tone])} />
-                  {c.title}
-                </li>
-              ))}
-            </ul>
+            {sessions.length === 0 ? (
+              <p className="text-xs text-muted-onPaper">No past chats yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {sessions.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => openSession(c.id)}
+                      className={cn(
+                        "w-full truncate border-2 px-2.5 py-2 text-left text-sm",
+                        c.id === activeSessionId ? "border-brand-black bg-brand-white font-semibold shadow-pixel-sm" : "border-transparent hover:border-brand-black",
+                      )}
+                    >
+                      {c.preview}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <p className="mt-2 font-pixel text-xs uppercase tracking-wide text-muted-onPaper">Your documents</p>
-            <ul className="flex flex-col gap-2">
-              {DOCS.map((d) => (
-                <li key={d.name} className="flex items-center justify-between gap-2 border-2 border-brand-black bg-brand-white px-2 py-1.5 text-xs">
-                  <span className="truncate">{d.name}</span>
-                  <PixelBadge tone={d.status === "Ready" ? "mint" : "sky"}>{d.status}</PixelBadge>
-                </li>
-              ))}
-            </ul>
+            {docs.length === 0 ? (
+              <p className="text-xs text-muted-onPaper">Nothing uploaded yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {docs.map((d) => {
+                  const b = docBadge(d.embedding_status);
+                  return (
+                    <li key={d.id} className="flex items-center justify-between gap-2 border-2 border-brand-black bg-brand-white px-2 py-1.5 text-xs">
+                      <span className="truncate">{d.filename}</span>
+                      <PixelBadge tone={b.tone}>{b.label}</PixelBadge>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </>
         )}
 
@@ -113,7 +120,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {dataError && (
+          <p role="alert" className="border-b-pixel border-brand-black bg-accent-coral px-4 py-1.5 text-xs font-semibold">
+            {dataError}
+          </p>
+        )}
+        <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }
