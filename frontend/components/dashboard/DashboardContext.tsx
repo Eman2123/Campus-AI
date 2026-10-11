@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react";
 
 import type { AuthUser } from "@/lib/auth";
-import type { DocumentItem, ScheduleItem, SessionSummary } from "@/lib/dashboard-api";
+import type { DocumentItem, Preferences, ScheduleItem, SessionSummary } from "@/lib/dashboard-api";
 
 export type DashboardCtx = {
   user: AuthUser;
@@ -19,6 +19,13 @@ export type DashboardCtx = {
   activeSessionId: string;
   openSession: (id: string) => void;
   startNewChat: () => void;
+  removeSession: (id: string) => Promise<void>;
+  /** Throws on failure so the Settings page can show the message. */
+  clearHistory: () => Promise<void>;
+  renameUser: (name: string) => Promise<void>;
+  prefs: Preferences;
+  /** Optimistic: applies at once, rolls back and shows the error banner if the save fails. */
+  setPref: (patch: Partial<Preferences>) => Promise<void>;
   dataError: string | null;
 };
 

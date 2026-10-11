@@ -106,3 +106,22 @@ export async function resetPassword(token: string, password: string): Promise<st
 export async function fetchCurrentUser(token: string): Promise<AuthUser> {
   return apiFetch<AuthUser>("/api/auth/me", { token });
 }
+
+const REMEMBER_KEY = "campus-ai:remember-default";
+
+/** Settings -> "Keep me signed in": the default state of the sign-in checkbox on this device. */
+export function getRememberDefault(): boolean {
+  try {
+    return window.localStorage.getItem(REMEMBER_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+export function setRememberDefault(value: boolean): void {
+  try {
+    window.localStorage.setItem(REMEMBER_KEY, value ? "1" : "0");
+  } catch {
+    // storage blocked: the choice just won't persist
+  }
+}

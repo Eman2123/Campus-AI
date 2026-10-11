@@ -30,7 +30,7 @@ export function SignUpForm() {
     setBusy(true);
     try {
       await action();
-      router.replace("/dashboard");
+      router.replace("/dashboard/home");
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) setExists(true);
       else setError(friendlyError(err));

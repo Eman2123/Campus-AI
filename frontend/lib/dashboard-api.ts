@@ -1,4 +1,5 @@
 import { API_BASE_URL, ApiError, apiFetch } from "@/lib/api";
+import type { AuthUser } from "@/lib/auth";
 
 export type SessionSummary = {
   id: string;
@@ -159,3 +160,41 @@ export async function streamChat(token: string, message: string, sessionId: stri
     }
   }
 }
+
+/* ---- Settings: name, preferences, chat history, account ---- */
+
+export type Preferences = {
+  reminders_enabled: boolean;
+  remind_hours: number;
+  digest_enabled: boolean;
+  digest_days: number;
+  drive_upload: boolean;
+  week_starts_on: "Monday" | "Sunday";
+  reduce_motion: boolean;
+  typewriter: boolean;
+  voice_input: boolean;
+};
+
+/** Mirrors the backend defaults (app/schemas/preferences.py) until the real values load. */
+export const DEFAULT_PREFS: Preferences = {
+  reminders_enabled: true,
+  remind_hours: 48,
+  digest_enabled: true,
+  digest_days: 7,
+  drive_upload: true,
+  week_starts_on: "Monday",
+  reduce_motion: false,
+  typewriter: true,
+  voice_input: true,
+};
+
+export const getPreferences = (token: string) => apiFetch<Preferences>("/api/auth/me/preferences", { token });
+export const updatePreferences = (token: string, patch: Partial<Preferences>) =>
+  apiFetch<Preferences>("/api/auth/me/preferences", { method: "PATCH", token, body: patch });
+export const updateName = (token: string, name: string) =>
+  apiFetch<AuthUser>("/api/auth/me", { method: "PATCH", token, body: { name } });
+export const deleteSession = (token: string, id: string) =>
+  apiFetch<void>(`/api/sessions/${id}`, { method: "DELETE", token });
+export const clearSessions = (token: string) => apiFetch<void>("/api/sessions", { method: "DELETE", token });
+export const deleteAccount = (token: string, confirmEmail: string) =>
+  apiFetch<void>("/api/auth/me", { method: "DELETE", token, body: { confirm_email: confirmEmail } });
