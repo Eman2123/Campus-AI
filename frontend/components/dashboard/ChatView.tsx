@@ -8,6 +8,7 @@ import { getSessionMessages, sendVoice, streamChat, uploadDocument } from "@/lib
 import { STARTERS, SUGGESTIONS, dayLabel, docBadge, startOfDay, toEvents } from "@/lib/dashboard-data";
 import { cn } from "@/lib/cn";
 
+import { Markdown } from "./Markdown";
 import { useDashboard } from "./DashboardContext";
 
 type Msg = { key: string; role: "user" | "assistant"; content: string; agent?: string | null; error?: boolean };
@@ -292,8 +293,14 @@ export function ChatView() {
                     <b className="font-pixel">Campus AI</b>
                     {m.agent && <PixelBadge tone="mint">{m.agent}</PixelBadge>}
                   </div>
-                  <PixelCard className={cn("whitespace-pre-wrap px-4 py-3 text-sm", m.error && "bg-accent-coral")}>
-                    {m.content || <span className="text-muted-onPaper">Thinking…</span>}
+                  <PixelCard className={cn("px-4 py-3 text-sm", m.error && "bg-accent-coral")}>
+                    {!m.content ? (
+                      <span className="text-muted-onPaper">Thinking…</span>
+                    ) : m.error ? (
+                      <span className="whitespace-pre-wrap">{m.content}</span>
+                    ) : (
+                      <Markdown>{m.content}</Markdown>
+                    )}
                   </PixelCard>
                   {i === lastIdx && !busy && m.content && !m.error && (
                     <div className="mt-3 flex flex-wrap gap-2">
