@@ -61,3 +61,37 @@ def test_documents_are_isolated_per_user(client):
     docs_for_b = client.get("/api/documents", headers={"Authorization": f"Bearer {token_b}"})
     assert docs_for_b.status_code == 200
     assert len(docs_for_b.json()) == 0
+
+
+def test_document_list_supports_limit_and_offset(client, auth_headers):
+    for i in range(3):
+        resp = client.post(
+            "/api/documents/upload",
+            files={"file": (f"page-{i}.txt", b"some plain study notes " * 10, "text/plain")},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201, resp.text
+
+    everything = client.get("/api/documents", headers=auth_headers).json()
+    first_two = client.get("/api/documents?limit=2", headers=auth_headers).json()
+    rest = client.get("/api/documents?limit=2&offset=2", headers=auth_headers).json()
+
+    assert len(first_two) == 2
+    assert [d["id"] for d in first_two + rest] == [d["id"] for d in everything[: 2 + len(rest)]]
+    assert client.get("/api/documents?limit=0", headers=auth_headers).status_code == 422
+
+
+def test_upload_rejects_files_that_do_not_match_their_extension(client, auth_headers):
+    resp = client.post(
+        "/api/documents/upload",
+        files={"file": ("fake.pdf", b"this is not a pdf", "application/pdf")},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+    empty = client.post(
+        "/api/documents/upload",
+        files={"file": ("empty.txt", b"", "text/plain")},
+        headers=auth_headers,
+    )
+    assert empty.status_code == 422
