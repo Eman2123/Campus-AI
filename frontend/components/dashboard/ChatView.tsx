@@ -22,7 +22,7 @@ function Icon({ d }: { d: string }) {
   );
 }
 
-function RightPanel({ onPickFile }: { onPickFile: () => void }) {
+function PanelContent({ onPickFile }: { onPickFile: () => void }) {
   const { docs, schedule } = useDashboard();
   const [tab, setTab] = useState<"Documents" | "Plan">("Documents");
   const today = startOfDay(new Date());
@@ -31,7 +31,7 @@ function RightPanel({ onPickFile }: { onPickFile: () => void }) {
   const upcoming = events.filter((e) => e.at >= today && e.at.getTime() < today.getTime() + 7 * DAY_MS);
 
   return (
-    <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l-pixel border-brand-black bg-brand-yellow-soft p-4 lg:flex">
+    <>
       <div className="grid grid-cols-2 border-pixel border-brand-black">
         {(["Documents", "Plan"] as const).map((t) => (
           <button key={t} type="button" onClick={() => setTab(t)} className={cn("py-2 font-pixel text-sm font-semibold", tab === t ? "bg-brand-black text-brand-white" : "bg-brand-white")}>
@@ -92,7 +92,38 @@ function RightPanel({ onPickFile }: { onPickFile: () => void }) {
           ))}
         </>
       )}
+    </>
+  );
+}
+
+function RightPanel({ onPickFile }: { onPickFile: () => void }) {
+  return (
+    <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l-pixel border-brand-black bg-brand-yellow-soft p-4 lg:flex">
+      <PanelContent onPickFile={onPickFile} />
     </aside>
+  );
+}
+
+function MobilePanel({ open, onClose, onPickFile }: { open: boolean; onClose: () => void; onPickFile: () => void }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden" role="dialog" aria-modal="true" aria-label="Documents and plan">
+      <button type="button" aria-label="Close panel" onClick={onClose} className="flex-1 bg-brand-black/50" />
+      <div className="flex max-h-[80dvh] flex-col gap-3 overflow-y-auto border-t-pixel border-brand-black bg-brand-yellow-soft p-4">
+        <div className="flex justify-end">
+          <button type="button" onClick={onClose} aria-label="Close panel" className="pixel-focus border-pixel border-brand-black bg-brand-white px-2.5 py-1 font-pixel text-sm font-bold">
+            ✕
+          </button>
+        </div>
+        <PanelContent onPickFile={onPickFile} />
+      </div>
+    </div>
   );
 }
 
@@ -104,6 +135,7 @@ export function ChatView() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [recording, setRecording] = useState(false);
   const [note, setNote] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -222,9 +254,14 @@ export function ChatView() {
             <h1 className="truncate font-pixel text-xl font-bold">{title}</h1>
             <p className="text-xs text-muted-onPaper">{lastAgent ? `Answered by the ${lastAgent} agent` : "The right agent is picked from your message"}</p>
           </div>
-          {nextDeadline && days !== null && (
-            <PixelBadge tone="coral">{nextDeadline.title}: {days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`}</PixelBadge>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {nextDeadline && days !== null && (
+              <PixelBadge tone="coral">{nextDeadline.title}: {days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`}</PixelBadge>
+            )}
+            <PixelButton size="sm" variant="secondary" className="lg:hidden" onClick={() => setPanelOpen(true)}>
+              Docs / Plan
+            </PixelButton>
+          </div>
         </header>
 
         <div className="flex flex-wrap items-center gap-2 border-b-pixel border-brand-black bg-brand-yellow-soft px-5 py-3">
@@ -305,6 +342,14 @@ export function ChatView() {
         </div>
       </section>
       <RightPanel onPickFile={() => fileRef.current?.click()} />
+      <MobilePanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        onPickFile={() => {
+          setPanelOpen(false);
+          fileRef.current?.click();
+        }}
+      />
     </>
   );
 }
