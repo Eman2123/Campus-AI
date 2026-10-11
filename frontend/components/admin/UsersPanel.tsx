@@ -12,6 +12,8 @@ export function UsersPanel({ token, selfId }: { token: string; selfId: string })
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pending, setPending] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "on" | "off">("all");
+  const shown = users.filter((u) => filter === "all" || (filter === "on") === u.is_active);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +51,7 @@ export function UsersPanel({ token, selfId }: { token: string; selfId: string })
   return (
     <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-1 flex-wrap gap-3">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -56,7 +59,13 @@ export function UsersPanel({ token, selfId }: { token: string; selfId: string })
           aria-label="Search users by email"
           className="w-full max-w-sm border-pixel border-brand-black bg-brand-white px-3 py-2 text-sm"
         />
-        <span className="text-sm text-muted-onPaper">{loading ? "Loading…" : `${users.length} user${users.length === 1 ? "" : "s"}`}</span>
+        <select aria-label="Status filter" value={filter} onChange={(e) => setFilter(e.target.value as "all" | "on" | "off")} className="border-pixel border-brand-black bg-brand-white px-3 py-2 text-sm">
+          <option value="all">All</option>
+          <option value="on">Active</option>
+          <option value="off">Disabled</option>
+        </select>
+        </div>
+        <span className="text-sm text-muted-onPaper">{loading ? "Loading…" : `${shown.length} user${shown.length === 1 ? "" : "s"}`}</span>
       </div>
       {error && <p role="alert" className="mb-3 border-2 border-brand-black bg-accent-coral px-3 py-2 text-sm font-semibold">{error}</p>}
       <PixelCard className="overflow-x-auto p-0">
@@ -71,10 +80,10 @@ export function UsersPanel({ token, selfId }: { token: string; selfId: string })
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 && !loading && (
+            {shown.length === 0 && !loading && (
               <tr><td colSpan={5} className="px-3 py-4 text-muted-onPaper">No users found.</td></tr>
             )}
-            {users.map((u) => (
+            {shown.map((u) => (
               <tr key={u.id} className="border-t-2 border-brand-black">
                 <td className="px-3 py-2">{u.email}</td>
                 <td className="px-3 py-2"><PixelBadge tone={u.role === "admin" ? "yellow" : "white"}>{u.role}</PixelBadge></td>
