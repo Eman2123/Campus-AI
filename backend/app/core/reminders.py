@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.dates import format_long_date
 from app.core.email import send_email
 from app.models.schedule import Schedule
 from app.models.user import User
@@ -17,7 +18,7 @@ def format_reminder_email(title: str, due_date: datetime) -> tuple[str, str]:
     subject = f"Reminder: {title} is due soon"
     body = (
         f"Hi,\n\nJust a heads up \u2014 \"{title}\" is due "
-        f"{due_date.strftime('%A, %B %-d, %Y')}.\n\n\u2014 Campus AI"
+        f"{format_long_date(due_date)}.\n\n\u2014 Campus AI"
     )
     return subject, body
 
