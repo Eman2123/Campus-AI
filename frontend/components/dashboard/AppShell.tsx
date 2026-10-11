@@ -10,16 +10,19 @@ import { cn } from "@/lib/cn";
 
 import { useDashboard } from "./DashboardContext";
 
-const NAV = [
+const BASE_NAV = [
   { href: "/dashboard", label: "Chat" },
   { href: "/dashboard/calendar", label: "Calendar" },
   { href: "/dashboard/settings", label: "Settings" },
 ];
 
+const ADMIN_NAV = { href: "/admin", label: "Admin" };
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, signOut, sessions, docs, activeSessionId, openSession, startNewChat, dataError } = useDashboard();
   const displayName = user.name || user.email;
+  const NAV = user.role === "admin" ? [...BASE_NAV, ADMIN_NAV] : BASE_NAV;
 
   return (
     <div className="flex h-[100dvh] flex-col bg-brand-white font-sans text-brand-black md:flex-row">
