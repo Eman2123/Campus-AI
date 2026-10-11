@@ -29,7 +29,7 @@ function FooterColumn({ title, children }: { title: string; children: React.Reac
   );
 }
 
-/** Section 10b: black footer under a pixel checker strip. The logo has dark text, so it sits on a white plate. */
+/** Section 10b: black footer under a pixel checker strip. It uses the on-dark logo, so no plate is needed. */
 export function Footer() {
   return (
     <footer className="bg-brand-black text-brand-white">
@@ -47,9 +47,7 @@ export function Footer() {
       <div className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1.2fr]">
           <div>
-            <div className="inline-block border-pixel border-brand-white bg-brand-white px-3 py-2 shadow-[4px_4px_0_0_#FACC15]">
-              <Logo height={30} />
-            </div>
+            <Logo height={40} variant="onDark" />
             <p className="mt-5 max-w-xs font-sans text-base text-brand-white/80">
               Study help that reads your own notes. Built for the coursework you actually have.
             </p>
