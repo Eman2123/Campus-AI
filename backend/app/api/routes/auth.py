@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.email import send_email
 from app.core.google_auth import GoogleAuthError, verify_google_id_token
+from app.core.checkpointer import delete_thread_checkpoints
 from app.core.google_drive import delete_file_from_drive
 from app.core.rate_limit import RateLimitByIP
 from app.core.storage import delete_file
@@ -321,6 +322,7 @@ async def delete_me(
 
     doc_ids = select(Document.id).where(Document.user_id == user_id)
     session_ids = select(Session.id).where(Session.user_id == user_id)
+    thread_ids = (await db.execute(session_ids)).scalars().all()
     await db.execute(delete(DocumentChunk).where(DocumentChunk.document_id.in_(doc_ids)))
     await db.execute(delete(Document).where(Document.user_id == user_id))
     await db.execute(delete(Message).where(Message.session_id.in_(session_ids)))
@@ -329,4 +331,5 @@ async def delete_me(
     await db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
     await db.execute(delete(User).where(User.id == user_id))
     await db.commit()
+    await delete_thread_checkpoints(thread_ids)
     logger.info("account deleted: user=%s", user_id)
