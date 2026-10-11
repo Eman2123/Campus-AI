@@ -84,3 +84,59 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Palette variables + dark theme (dashboard and admin only).
+ * Light values mirror lib/design-tokens.ts. `.app-dark` is added to the
+ * shell root by useDarkMode(); it inverts black/white and darkens the
+ * soft-yellow panels. Yellow and the accents keep their colour, so text
+ * sitting on them is pinned to near-black below.
+ * ------------------------------------------------------------------ */
+:root {
+  --brand-white: 255 255 255;
+  --brand-black: 23 23 23;
+  --brand-yellow-soft: 254 249 195;
+}
+
+.app-dark {
+  --brand-white: 18 18 18;
+  --brand-black: 245 245 245;
+  --brand-yellow-soft: 38 34 10;
+  color-scheme: dark;
+}
+.app-dark .bg-brand-yellow,
+.app-dark .bg-brand-yellow-deep,
+.app-dark .bg-accent-coral,
+.app-dark .bg-accent-mint,
+.app-dark .bg-accent-sky,
+.app-dark .hover\:bg-accent-coral:hover,
+.app-dark .hover\:bg-accent-mint:hover,
+.app-dark .bg-brand-black.text-brand-yellow {
+  color: #171717;
+}
+.app-dark .text-muted-onPaper {
+  color: #a9b0c7;
+}
+.app-dark .bg-graph {
+  background-color: rgb(var(--brand-white));
+  --graph-minor: rgba(245, 245, 245, 0.05);
+  --graph-major: rgba(245, 245, 245, 0.09);
+}
+.app-dark .pixel-focus:focus-visible {
+  outline-color: #f5f5f5;
+}
+.app-dark .shadow-pixel,
+.app-dark .hover\:shadow-pixel:hover {
+  --tw-shadow: 4px 4px 0 0 #f5f5f5;
+  --tw-shadow-colored: 4px 4px 0 0 var(--tw-shadow-color);
+}
+.app-dark .shadow-pixel-sm,
+.app-dark .hover\:shadow-pixel-sm:hover {
+  --tw-shadow: 2px 2px 0 0 #f5f5f5;
+  --tw-shadow-colored: 2px 2px 0 0 var(--tw-shadow-color);
+}
+.app-dark .shadow-pixel-lg,
+.app-dark .hover\:shadow-pixel-lg:hover {
+  --tw-shadow: 6px 6px 0 0 #f5f5f5;
+  --tw-shadow-colored: 6px 6px 0 0 var(--tw-shadow-color);
+}

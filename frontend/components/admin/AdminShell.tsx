@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 import { PixelBadge } from "@/components/pixel";
 import { cn } from "@/lib/cn";
+import { useDarkMode } from "@/lib/theme";
 
 import { useAdmin } from "./AdminContext";
 
@@ -45,9 +46,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, signOut } = useAdmin();
   const name = user.name || user.email;
+  const dark = useDarkMode();
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-brand-white font-sans text-brand-black md:flex-row">
+    <div className={cn("flex h-[100dvh] flex-col bg-brand-white font-sans text-brand-black md:flex-row", dark && "app-dark")}>
       <nav className="flex gap-2 overflow-x-auto border-b-pixel border-brand-black bg-brand-yellow-soft px-3 py-3 md:hidden">
         {NAV.map((n) => <NavLink key={n.href} {...n} active={pathname === n.href} />)}
       </nav>

@@ -8,6 +8,7 @@ import { getSessionMessages, sendVoice, streamChat, uploadDocument } from "@/lib
 import { STARTERS, SUGGESTIONS, dayLabel, docBadge, startOfDay, toEvents } from "@/lib/dashboard-data";
 import { cn } from "@/lib/cn";
 
+import { DocDeleteButton } from "./DocDeleteButton";
 import { Markdown } from "./Markdown";
 import { useDashboard } from "./DashboardContext";
 
@@ -50,7 +51,10 @@ function PanelContent({ onPickFile }: { onPickFile: () => void }) {
               <div key={d.id} className="border-2 border-brand-black bg-brand-white p-2 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate">{d.filename}</span>
-                  <PixelBadge tone={b.tone}>{b.label}</PixelBadge>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <PixelBadge tone={b.tone}>{b.label}</PixelBadge>
+                    <DocDeleteButton id={d.id} filename={d.filename} />
+                  </span>
                 </div>
                 {d.subject && <p className="mt-1 text-muted-onPaper">{d.subject}</p>}
                 {b.label === "Reading" && (

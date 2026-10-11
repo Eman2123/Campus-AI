@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PixelBadge, PixelButton, PixelCard } from "@/components/pixel";
 import { friendlyError } from "@/lib/api";
 import { deleteDocument, digestMe, downloadIcs, remindMe } from "@/lib/dashboard-api";
 import { cn } from "@/lib/cn";
+import { getThemePref, setThemePref, type ThemePref } from "@/lib/theme";
 
 import { useDashboard } from "./DashboardContext";
 
@@ -68,7 +69,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function SettingsView() {
   const { user, token, signOut, docs, refreshDocs } = useDashboard();
   const name = user.name ?? "";
-  const [theme, setTheme] = useState("Light");
+  const [theme, setTheme] = useState<ThemePref>("Light");
+  useEffect(() => setTheme(getThemePref()), []);
   const [week, setWeek] = useState("Monday");
   const [remind, setRemind] = useState("48 hours");
   const [ahead, setAhead] = useState("7 days");
@@ -108,7 +110,7 @@ export function SettingsView() {
         </Section>
 
         <Section title="Appearance">
-          <Row title="Theme" desc="Dark and System are not available yet."><Seg options={["Light", "Dark", "System"]} value={theme} onChange={(v) => (v === "Light" ? setTheme(v) : setNote("Only the light theme exists so far."))} /></Row>
+          <Row title="Theme" desc="Applies to the dashboard and admin pages on this device."><Seg options={["Light", "Dark", "System"]} value={theme} onChange={(v) => { setTheme(v as ThemePref); setThemePref(v as ThemePref); }} /></Row>
           <Row title="Reduce motion" desc="Turns off animated effects across the app."><Switch on={on.motion} onChange={() => toggle("motion")} label="Reduce motion" /></Row>
         </Section>
 

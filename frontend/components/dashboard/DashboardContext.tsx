@@ -13,6 +13,7 @@ export type DashboardCtx = {
   refreshSessions: () => Promise<void>;
   docs: DocumentItem[];
   refreshDocs: () => Promise<void>;
+  removeDocument: (id: string) => Promise<void>;
   schedule: ScheduleItem[];
   refreshSchedule: () => Promise<void>;
   activeSessionId: string;

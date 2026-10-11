@@ -40,10 +40,12 @@ const config: Config = {
         // bg-brand-yellow-soft, text-brand-black, bg-accent-mint, ...
         brand: {
           yellow: brand.yellow,
-          "yellow-soft": brand.yellowSoft,
+          // soft / black / white are CSS variables so the dashboard can switch
+          // to a dark palette (.app-dark in globals.css). Light values match design-tokens.ts.
+          "yellow-soft": "rgb(var(--brand-yellow-soft) / <alpha-value>)",
           "yellow-deep": brand.yellowDeep,
-          black: brand.black,
-          white: brand.white,
+          black: "rgb(var(--brand-black) / <alpha-value>)",
+          white: "rgb(var(--brand-white) / <alpha-value>)",
         },
         accent: { ...accent },
       },
