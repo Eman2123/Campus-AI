@@ -9,6 +9,7 @@ from app.core.database import AsyncSessionLocal
 from app.core.email import send_email
 from app.models.schedule import Schedule
 from app.models.user import User
+from app.schemas.preferences import Preferences
 
 logger = logging.getLogger("campus_ai.digest")
 
@@ -44,7 +45,8 @@ async def send_daily_digests(user_id: str | None = None) -> int:
     Returns the number of digest emails actually sent.
     """
     now = datetime.now(timezone.utc)
-    window_end = now + timedelta(days=settings.DIGEST_LOOKAHEAD_DAYS)
+    # Widest window anyone can choose; each student's own look-ahead is applied below.
+    window_end = now + timedelta(days=max(settings.DIGEST_LOOKAHEAD_DAYS, 30))
 
     async with AsyncSessionLocal() as db:
         query = (
@@ -62,6 +64,13 @@ async def send_daily_digests(user_id: str | None = None) -> int:
     items_by_user: dict[str, list[Schedule]] = defaultdict(list)
     users_by_id: dict[str, User] = {}
     for schedule, user in rows:
+        prefs = Preferences(**(user.preferences or {}))
+        # The daily sweep respects the on/off switch; an explicit
+        # "send me the digest" (user_id given) always goes through.
+        if user_id is None and not prefs.digest_enabled:
+            continue
+        if schedule.due_date > now + timedelta(days=prefs.digest_days):
+            continue
         key = str(user.id)
         items_by_user[key].append(schedule)
         users_by_id[key] = user

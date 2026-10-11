@@ -8,6 +8,7 @@ from app.core.database import AsyncSessionLocal
 from app.core.email import send_email
 from app.models.schedule import Schedule
 from app.models.user import User
+from app.schemas.preferences import Preferences
 
 logger = logging.getLogger("campus_ai.reminders")
 
@@ -35,7 +36,9 @@ async def send_deadline_reminders(user_id: str | None = None) -> int:
     Returns the number of reminders actually sent.
     """
     now = datetime.now(timezone.utc)
-    window_end = now + timedelta(hours=settings.REMINDER_LEAD_TIME_HOURS)
+    # Query with the widest window anyone can choose; each student's own
+    # lead time (Settings -> Remind me before) is applied per row below.
+    window_end = now + timedelta(hours=max(settings.REMINDER_LEAD_TIME_HOURS, 168))
 
     sent = 0
     async with AsyncSessionLocal() as db:
@@ -56,6 +59,13 @@ async def send_deadline_reminders(user_id: str | None = None) -> int:
         rows = result.all()
 
         for schedule, user in rows:
+            prefs = Preferences(**(user.preferences or {}))
+            # The daily sweep respects the on/off switch; an explicit
+            # "remind me now" (user_id given) always goes through.
+            if user_id is None and not prefs.reminders_enabled:
+                continue
+            if schedule.due_date > now + timedelta(hours=prefs.remind_hours):
+                continue
             subject, body = format_reminder_email(schedule.title, schedule.due_date)
             try:
                 send_email(to=user.email, subject=subject, body=body)

@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -73,3 +73,33 @@ async def get_session_messages(
         select(Message).where(Message.session_id == session_id).order_by(Message.created_at)
     )
     return result.scalars().all()
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(
+    session_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deletes one conversation. 404 (not 403) on someone else's session,
+    same as reading it."""
+    result = await db.execute(
+        select(Session.id).where(Session.id == session_id, Session.user_id == current_user.id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await db.execute(delete(Message).where(Message.session_id == session_id))
+    await db.execute(delete(Session).where(Session.id == session_id))
+    await db.commit()
+
+
+@router.delete("/sessions", status_code=204)
+async def clear_sessions(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Settings -> Clear chat history: every conversation of the caller's."""
+    own_sessions = select(Session.id).where(Session.user_id == current_user.id)
+    await db.execute(delete(Message).where(Message.session_id.in_(own_sessions)))
+    await db.execute(delete(Session).where(Session.user_id == current_user.id))
+    await db.commit()

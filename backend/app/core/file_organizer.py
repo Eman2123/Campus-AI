@@ -9,6 +9,8 @@ from app.core.storage import read_file
 from app.core.subject_classifier import classify_subject
 from app.core.text_extraction import extract_text
 from app.models.document import Document
+from app.models.user import User
+from app.schemas.preferences import Preferences
 
 logger = logging.getLogger("campus_ai.file_organizer")
 
@@ -45,8 +47,16 @@ async def organize_document(document_id: str) -> None:
             subject = await asyncio.to_thread(classify_subject, document.filename, excerpt)
             document.subject = subject
 
-            drive_result = await asyncio.to_thread(
-                organize_file_in_drive, str(document.user_id), subject, document.filename, content
+            owner = (await db.execute(select(User).where(User.id == document.user_id))).scalar_one_or_none()
+            drive_enabled = Preferences(**((owner.preferences if owner else None) or {})).drive_upload
+            # Settings -> "File uploads into Google Drive": when off, the
+            # subject tag still lands but nothing is filed in Drive.
+            drive_result = (
+                await asyncio.to_thread(
+                    organize_file_in_drive, str(document.user_id), subject, document.filename, content
+                )
+                if drive_enabled
+                else None
             )
             if drive_result is not None:
                 document.drive_file_id = drive_result["drive_file_id"]
