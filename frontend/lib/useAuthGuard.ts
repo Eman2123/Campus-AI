@@ -7,6 +7,7 @@ import { type AuthUser, clearToken, fetchCurrentUser, getToken } from "@/lib/aut
 
 type AuthGuardResult = {
   user: AuthUser | null;
+  setUser: (user: AuthUser) => void;
   token: string | null;
   loading: boolean;
   signOut: () => void;
@@ -47,7 +48,7 @@ export function useAuthGuard(): AuthGuardResult {
     router.replace("/signin");
   }
 
-  return { user, token, loading, signOut };
+  return { user, setUser, token, loading, signOut };
 }
 
 /**
@@ -65,7 +66,7 @@ export function useRedirectIfSignedIn(): void {
     let cancelled = false;
     fetchCurrentUser(storedToken)
       .then(() => {
-        if (!cancelled) router.replace("/dashboard");
+        if (!cancelled) router.replace("/dashboard/home");
       })
       .catch(() => clearToken());
     return () => {

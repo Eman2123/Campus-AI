@@ -6,10 +6,17 @@ import { AppShell } from "@/components/dashboard/AppShell";
 import { DashboardProvider } from "@/components/dashboard/DashboardContext";
 import { friendlyError } from "@/lib/api";
 import {
+  DEFAULT_PREFS,
   type DocumentItem,
+  type Preferences,
   type ScheduleItem,
   type SessionSummary,
+  clearSessions,
   deleteDocument,
+  deleteSession,
+  getPreferences,
+  updateName,
+  updatePreferences,
   listDocuments,
   listSchedule,
   listSessions,
@@ -18,12 +25,13 @@ import { newSessionId } from "@/lib/dashboard-data";
 import { useAuthGuard } from "@/lib/useAuthGuard";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, token, loading, signOut } = useAuthGuard();
+  const { user, setUser, token, loading, signOut } = useAuthGuard();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [dataError, setDataError] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState(newSessionId);
+  const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
 
   const refreshSessions = useCallback(async () => {
     if (!token) return;
@@ -67,6 +75,55 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, [token]);
 
   useEffect(() => {
+    if (!token) return;
+    getPreferences(token).then(setPrefs).catch(() => undefined); // fall back to defaults
+  }, [token]);
+
+  const setPref = useCallback(
+    async (patch: Partial<Preferences>) => {
+      if (!token) return;
+      const previous = prefs;
+      setPrefs({ ...prefs, ...patch });
+      try {
+        setPrefs(await updatePreferences(token, patch));
+      } catch (e) {
+        setPrefs(previous);
+        setDataError(friendlyError(e));
+      }
+    },
+    [token, prefs],
+  );
+
+  const removeSession = useCallback(
+    async (id: string) => {
+      if (!token) return;
+      try {
+        await deleteSession(token, id);
+        if (id === activeSessionId) setActiveSessionId(newSessionId());
+        await refreshSessions();
+      } catch (e) {
+        setDataError(friendlyError(e));
+      }
+    },
+    [token, activeSessionId, refreshSessions],
+  );
+
+  const clearHistory = useCallback(async () => {
+    if (!token) return;
+    await clearSessions(token);
+    setActiveSessionId(newSessionId());
+    await refreshSessions();
+  }, [token, refreshSessions]);
+
+  const renameUser = useCallback(
+    async (name: string) => {
+      if (!token) return;
+      setUser(await updateName(token, name));
+    },
+    [token, setUser],
+  );
+
+  useEffect(() => {
     void refreshSessions();
     void refreshDocs();
     void refreshSchedule();
@@ -104,6 +161,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         activeSessionId,
         openSession: setActiveSessionId,
         startNewChat: () => setActiveSessionId(newSessionId()),
+        removeSession,
+        clearHistory,
+        renameUser,
+        prefs,
+        setPref,
         dataError,
       }}
     >

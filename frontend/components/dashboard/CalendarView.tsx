@@ -11,7 +11,8 @@ import { cn } from "@/lib/cn";
 import { useDashboard } from "./DashboardContext";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MON_FIRST = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const SUN_FIRST = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const key = dateKey;
 
@@ -29,7 +30,10 @@ function EventChip({ e }: { e: CalEvent }) {
 }
 
 export function CalendarView() {
-  const { token, schedule } = useDashboard();
+  const { token, schedule, prefs } = useDashboard();
+  const monFirst = prefs.week_starts_on === "Monday";
+  const DAYS = monFirst ? MON_FIRST : SUN_FIRST;
+  const lead = monFirst ? 6 : 0; // shifts getDay() so the first column is index 0
   const TODAY = useMemo(() => new Date(), []);
   const EVENTS = useMemo(() => toEvents(schedule), [schedule]);
   const [busy, setBusy] = useState(false);
@@ -40,7 +44,7 @@ export function CalendarView() {
 
   const y = anchor.getFullYear();
   const m = anchor.getMonth();
-  const weekStart = new Date(y, m, anchor.getDate() - ((anchor.getDay() + 6) % 7)); // Monday first
+  const weekStart = new Date(y, m, anchor.getDate() - ((anchor.getDay() + lead) % 7));
   const weekDays = Array.from({ length: 7 }, (_, k) => new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + k));
   const weekEnd = weekDays[6];
   const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -49,7 +53,7 @@ export function CalendarView() {
   function shift(dir: -1 | 1) {
     setAnchor(view === "week" ? new Date(y, m, anchor.getDate() + 7 * dir) : new Date(y, m + dir, 1));
   }
-  const offset = (new Date(y, m, 1).getDay() + 6) % 7; // Monday first
+  const offset = (new Date(y, m, 1).getDay() + lead) % 7;
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const cells = Math.ceil((offset + daysInMonth) / 7) * 7;
   const byDate = (d: Date) => EVENTS.filter((e) => e.date === key(d));
@@ -65,6 +69,26 @@ export function CalendarView() {
       setBusy(false);
     }
   }
+
+  const sidePanel = (
+    <>
+        <p className="font-pixel text-lg font-bold">Coming up</p>
+        <PixelCard className="p-0">
+          {upcoming.length === 0 && <p className="px-3 py-2.5 text-sm text-muted-onPaper">Nothing coming up.</p>}
+          {upcoming.map((e) => (
+            <div key={e.id} className="flex items-center justify-between border-b-2 border-brand-black px-3 py-2.5 text-sm last:border-0">
+              <span>{e.title}<br /><small className="text-muted-onPaper">{e.date}</small></span>
+              <PixelBadge tone={e.kind === "deadline" ? "coral" : "mint"}>{e.kind}</PixelBadge>
+            </div>
+          ))}
+        </PixelCard>
+        <p className="mt-2 font-pixel text-lg font-bold">Get notified</p>
+        <PixelButton variant="dark" size="sm" disabled={busy} onClick={() => run(async () => { const r = await remindMe(token); return r.reminders_sent ? `Sent ${r.reminders_sent} reminder email(s).` : "No deadlines in the reminder window right now."; })}>Remind me about deadlines</PixelButton>
+        <PixelButton variant="secondary" size="sm" disabled={busy} onClick={() => run(async () => { const r = await digestMe(token); return r.digests_sent ? "Digest sent to your email." : "Nothing to put in a digest right now."; })}>Email me this week&apos;s digest</PixelButton>
+        <PixelButton variant="secondary" size="sm" disabled={busy} onClick={() => run(async () => { await downloadIcs(token); return "Downloaded campus-ai-schedule.ics"; })}>Export as .ics</PixelButton>
+        {note && <p className="text-xs text-muted-onPaper" role="status">{note}</p>}
+          </>
+  );
 
   return (
     <>
@@ -148,25 +172,14 @@ export function CalendarView() {
               ))}
             </PixelCard>
           )}
+
+          {/* Phones have no side column: the same panel sits under the calendar. */}
+          <div className="mt-6 flex flex-col gap-3 border-pixel border-brand-black bg-brand-yellow-soft p-4 lg:hidden">{sidePanel}</div>
         </div>
       </main>
 
       <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l-pixel border-brand-black bg-brand-yellow-soft p-4 lg:flex">
-        <p className="font-pixel text-lg font-bold">Coming up</p>
-        <PixelCard className="p-0">
-          {upcoming.length === 0 && <p className="px-3 py-2.5 text-sm text-muted-onPaper">Nothing coming up.</p>}
-          {upcoming.map((e) => (
-            <div key={e.id} className="flex items-center justify-between border-b-2 border-brand-black px-3 py-2.5 text-sm last:border-0">
-              <span>{e.title}<br /><small className="text-muted-onPaper">{e.date}</small></span>
-              <PixelBadge tone={e.kind === "deadline" ? "coral" : "mint"}>{e.kind}</PixelBadge>
-            </div>
-          ))}
-        </PixelCard>
-        <p className="mt-2 font-pixel text-lg font-bold">Get notified</p>
-        <PixelButton variant="dark" size="sm" disabled={busy} onClick={() => run(async () => { const r = await remindMe(token); return r.reminders_sent ? `Sent ${r.reminders_sent} reminder email(s).` : "No deadlines in the reminder window right now."; })}>Remind me about deadlines</PixelButton>
-        <PixelButton variant="secondary" size="sm" disabled={busy} onClick={() => run(async () => { const r = await digestMe(token); return r.digests_sent ? "Digest sent to your email." : "Nothing to put in a digest right now."; })}>Email me this week&apos;s digest</PixelButton>
-        <PixelButton variant="secondary" size="sm" disabled={busy} onClick={() => run(async () => { await downloadIcs(token); return "Downloaded campus-ai-schedule.ics"; })}>Export as .ics</PixelButton>
-        {note && <p className="text-xs text-muted-onPaper" role="status">{note}</p>}
+        {sidePanel}
       </aside>
     </>
   );

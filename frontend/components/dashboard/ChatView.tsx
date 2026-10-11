@@ -133,7 +133,7 @@ function MobilePanel({ open, onClose, onPickFile }: { open: boolean; onClose: ()
 }
 
 export function ChatView() {
-  const { token, sessions, activeSessionId, refreshSessions, refreshDocs, refreshSchedule, schedule } = useDashboard();
+  const { token, sessions, activeSessionId, refreshSessions, refreshDocs, refreshSchedule, schedule, prefs } = useDashboard();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -181,9 +181,14 @@ export function ChatView() {
     const stamp = Date.now();
     const aKey = `a${stamp}`;
     setMsgs((m) => [...m, { key: `u${stamp}`, role: "user", content: value }, { key: aKey, role: "assistant", content: "" }]);
+    // Settings -> Typewriter replies: when off, hold the text back and show it whole at the end.
+    let held = "";
     await streamChat(token, value, activeSessionId, {
-      onToken: (c) => setMsgs((m) => m.map((x) => (x.key === aKey ? { ...x, content: x.content + c } : x))),
-      onDone: (agent) => setMsgs((m) => m.map((x) => (x.key === aKey ? { ...x, agent } : x))),
+      onToken: (c) => {
+        if (prefs.typewriter) setMsgs((m) => m.map((x) => (x.key === aKey ? { ...x, content: x.content + c } : x)));
+        else held += c;
+      },
+      onDone: (agent) => setMsgs((m) => m.map((x) => (x.key === aKey ? { ...x, agent, content: held || x.content } : x))),
       onError: (msg) => setMsgs((m) => m.map((x) => (x.key === aKey ? { ...x, content: msg, error: true } : x))),
     });
     setBusy(false);
@@ -344,9 +349,11 @@ export function ChatView() {
                 placeholder={recording ? "Recording… press the mic to send" : "Ask anything about your notes…"}
                 className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm outline-none"
               />
-              <PixelButton size="sm" variant={recording ? "primary" : "secondary"} aria-label={recording ? "Stop recording" : "Voice input"} disabled={busy && !recording} onClick={() => void toggleVoice()}>
-                <Icon d="M9 3h6v12H9zM5 11a7 7 0 0014 0M12 18v3" />
-              </PixelButton>
+              {(prefs.voice_input || recording) && (
+                <PixelButton size="sm" variant={recording ? "primary" : "secondary"} aria-label={recording ? "Stop recording" : "Voice input"} disabled={busy && !recording} onClick={() => void toggleVoice()}>
+                  <Icon d="M9 3h6v12H9zM5 11a7 7 0 0014 0M12 18v3" />
+                </PixelButton>
+              )}
               <PixelButton size="sm" type="submit" aria-label="Send" disabled={busy || !text.trim()}>→</PixelButton>
             </form>
           </div>

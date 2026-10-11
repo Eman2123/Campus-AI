@@ -22,7 +22,7 @@ const BASE_NAV = [
 const ADMIN_NAV = { href: "/admin", label: "Admin" };
 
 function SidebarLists({ onNavigate }: { onNavigate?: () => void }) {
-  const { sessions, docs, activeSessionId, openSession, startNewChat } = useDashboard();
+  const { sessions, docs, activeSessionId, openSession, startNewChat, removeSession } = useDashboard();
   return (
     <>
       <PixelButton
@@ -41,7 +41,7 @@ function SidebarLists({ onNavigate }: { onNavigate?: () => void }) {
       ) : (
         <ul className="flex flex-col gap-1">
           {sessions.map((c) => (
-            <li key={c.id}>
+            <li key={c.id} className="flex items-stretch gap-1">
               <button
                 type="button"
                 onClick={() => {
@@ -49,11 +49,22 @@ function SidebarLists({ onNavigate }: { onNavigate?: () => void }) {
                   onNavigate?.();
                 }}
                 className={cn(
-                  "w-full truncate border-2 px-2.5 py-2 text-left text-sm",
+                  "min-w-0 flex-1 truncate border-2 px-2.5 py-2 text-left text-sm",
                   c.id === activeSessionId ? "border-brand-black bg-brand-white font-semibold shadow-pixel-sm" : "border-transparent hover:border-brand-black",
                 )}
               >
                 {c.preview}
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete chat: ${c.preview}`}
+                title="Delete chat"
+                onClick={() => {
+                  if (window.confirm("Delete this chat? This cannot be undone.")) void removeSession(c.id);
+                }}
+                className="pixel-focus shrink-0 border-2 border-transparent px-1.5 text-xs font-bold hover:border-brand-black hover:bg-accent-coral"
+              >
+                ✕
               </button>
             </li>
           ))}
@@ -85,7 +96,7 @@ function SidebarLists({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, signOut, dataError } = useDashboard();
+  const { user, signOut, dataError, prefs } = useDashboard();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const dark = useDarkMode();
   const displayName = user.name || user.email;
@@ -104,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [drawerOpen]);
 
   return (
-    <div className={cn("flex h-[100dvh] flex-col bg-brand-white font-sans text-brand-black md:flex-row", dark && "app-dark")}>
+    <div className={cn("flex h-[100dvh] flex-col bg-brand-white font-sans text-brand-black md:flex-row", dark && "app-dark", prefs.reduce_motion && "reduce-motion")}>
       {/* Mobile nav */}
       <nav className="flex gap-2 overflow-x-auto border-b-pixel border-brand-black bg-brand-yellow-soft px-3 py-2 md:hidden">
         {onChat && (

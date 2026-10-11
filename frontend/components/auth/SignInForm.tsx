@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { PixelButton, PixelCheckbox, PixelInput } from "@/components/pixel";
 import { friendlyError } from "@/lib/api";
-import { signIn, signInWithGoogle } from "@/lib/auth";
+import { getRememberDefault, signIn, signInWithGoogle } from "@/lib/auth";
 import { useRedirectIfSignedIn } from "@/lib/useAuthGuard";
 import { FormError, FormNotice } from "./FormError";
 import { GoogleButton } from "./GoogleButton";
@@ -20,6 +20,7 @@ export function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
+  useEffect(() => setRemember(getRememberDefault()), []); // Settings -> "Keep me signed in"
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -28,7 +29,7 @@ export function SignInForm() {
     setBusy(true);
     try {
       await action();
-      router.replace("/dashboard");
+      router.replace("/dashboard/home");
     } catch (err) {
       setError(friendlyError(err));
       setBusy(false);

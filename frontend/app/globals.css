@@ -140,3 +140,12 @@
   --tw-shadow: 6px 6px 0 0 #f5f5f5;
   --tw-shadow-colored: 6px 6px 0 0 var(--tw-shadow-color);
 }
+
+/* Settings -> Reduce motion: switches off animation and transitions inside the app shell. */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
