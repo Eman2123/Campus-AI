@@ -105,6 +105,8 @@ class Settings(BaseSettings):
     AIML_API_KEY: str = ""
     AIML_API_BASE_URL: str = "https://api.aimlapi.com/v1"
     AIML_MODEL: str = "gpt-4o-mini"
+    LLM_TIMEOUT_SECONDS: float = 45.0
+    LLM_MAX_RETRIES: int = 2
     ASSEMBLYAI_API_KEY: str = ""
 
     # Observability (Day 15) — optional. LangSmith auto-instruments

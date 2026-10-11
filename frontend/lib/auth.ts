@@ -1,6 +1,4 @@
-import { apiFetch } from "@/lib/api";
-
-const TOKEN_STORAGE_KEY = "campus-ai:token";
+import { apiFetch, TOKEN_STORAGE_KEY } from "@/lib/api";
 
 export type AuthUser = {
   id: string;

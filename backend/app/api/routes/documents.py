@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.core.file_organizer import organize_document
 from app.core.google_drive import delete_file_from_drive
 from app.core.rag_pipeline import process_document
-from app.core.storage import delete_file, save_file
+from app.core.storage import MAX_FILE_SIZE_BYTES, delete_file, save_file
 from app.models.document import Document
 from app.models.user import User
 from app.schemas.document import DocumentOut
@@ -26,7 +26,19 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    content = await file.read()
+    # Read in chunks and stop as soon as the limit is crossed, so an oversized
+    # upload is rejected without first loading all of it into memory.
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(1024 * 1024):
+        total += len(chunk)
+        if total > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Max size is {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB.",
+            )
+        chunks.append(chunk)
+    content = b"".join(chunks)
 
     try:
         storage_path = save_file(str(current_user.id), file.filename, content)

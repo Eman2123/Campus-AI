@@ -3,8 +3,10 @@ import os
 import time
 from contextlib import asynccontextmanager
 
+import openai
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.agents.graph import campus_ai_graph
 from app.core.checkpointer import attach_postgres_checkpointer
@@ -58,6 +60,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _json_error(status_code: int, detail: str) -> JSONResponse:
+    return JSONResponse(status_code=status_code, content={"detail": detail})
+
+
+@app.exception_handler(openai.APITimeoutError)
+async def _llm_timeout(request: Request, exc: openai.APITimeoutError):
+    logger.warning("LLM timeout on %s %s", request.method, request.url.path)
+    return _json_error(504, "The AI took too long to respond. Please try again.")
+
+
+@app.exception_handler(openai.RateLimitError)
+async def _llm_rate_limited(request: Request, exc: openai.RateLimitError):
+    logger.warning("LLM provider rate limit on %s %s", request.method, request.url.path)
+    return _json_error(503, "The AI service is busy right now. Please try again in a moment.")
+
+
+@app.exception_handler(openai.APIError)
+async def _llm_error(request: Request, exc: openai.APIError):
+    # Covers connection errors, auth/config problems and provider 5xx. The
+    # real cause goes to the logs, never to the client.
+    logger.exception("LLM provider error on %s %s: %s", request.method, request.url.path, exc)
+    return _json_error(502, "The AI service is unavailable right now. Please try again shortly.")
+
+
+@app.exception_handler(Exception)
+async def _unhandled(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s %s: %s", request.method, request.url.path, exc)
+    return _json_error(500, "Something went wrong on our side.")
 
 
 @app.middleware("http")

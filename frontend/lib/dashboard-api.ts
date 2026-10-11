@@ -1,4 +1,4 @@
-import { API_BASE_URL, ApiError, apiFetch } from "@/lib/api";
+import { API_BASE_URL, ApiError, apiFetch, handleSessionExpired } from "@/lib/api";
 import type { AuthUser } from "@/lib/auth";
 
 export type SessionSummary = {
@@ -72,6 +72,7 @@ async function send(path: string, init: RequestInit, token: string): Promise<Res
   } catch {
     throw new ApiError("Can't reach the server. Check your connection and try again.", 0);
   }
+  if (res.status === 401) handleSessionExpired();
   if (!res.ok) throw await failure(res);
   return res;
 }
