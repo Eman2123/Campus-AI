@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 
@@ -59,7 +60,7 @@ async def voice_chat(
         tmp_path = tmp.name
 
     try:
-        transcript_text = transcribe_audio(tmp_path)
+        transcript_text = await asyncio.to_thread(transcribe_audio, tmp_path)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Transcription failed: {exc}")
     finally:
@@ -118,7 +119,7 @@ async def voice_transcribe(
         tmp.write(audio_bytes)
         tmp_path = tmp.name
     try:
-        transcript_text = transcribe_audio(tmp_path)
+        transcript_text = await asyncio.to_thread(transcribe_audio, tmp_path)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Transcription failed: {exc}")
     finally:

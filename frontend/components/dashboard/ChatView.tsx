@@ -21,6 +21,8 @@ type VoiceMode = "dictate" | "talk";
 /** Strip markdown so the voice reads words, not symbols. */
 function plainForSpeech(md: string): string {
   return md
+    // Emoji and pictographs: the voice would skip them with a pause or read their names.
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{FE0F}\u{200D}\u{20E3}]+/gu, "")
     .replace(/```[\s\S]*?```/g, " code block. ")
     .replace(/`([^`]*)`/g, "$1")
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
@@ -29,7 +31,7 @@ function plainForSpeech(md: string): string {
     .replace(/^\s*[-*+]\s+/gm, "")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 4500);
+    .slice(0, 1500);
 }
 
 function Icon({ d }: { d: string }) {
