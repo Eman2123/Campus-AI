@@ -1,14 +1,14 @@
 import os
 import tempfile
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user
 from app.api.routes.agent import _persist_turn, _run_graph
 from app.core.config import settings
 from app.core.rate_limit import RateLimitByUser
-from app.core.voice import transcribe_audio
+from app.core.voice import synthesize_speech, transcribe_audio
 from app.models.user import User
 
 router = APIRouter()
@@ -91,3 +91,58 @@ async def voice_chat(
         agent_used=agent_used,
         reply=reply,
     )
+
+class TranscribeResponse(BaseModel):
+    transcript: str
+
+
+@router.post(
+    "/voice/transcribe",
+    response_model=TranscribeResponse,
+    dependencies=[Depends(RateLimitByUser(times=10, seconds=60))],
+)
+async def voice_transcribe(
+    audio: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Dictation: audio in, text out. Nothing is sent to the agents or saved."""
+    if not settings.ASSEMBLYAI_API_KEY:
+        raise HTTPException(status_code=503, detail="ASSEMBLYAI_API_KEY not configured")
+
+    suffix = os.path.splitext(audio.filename or "")[1] or ".wav"
+    audio_bytes = await audio.read()
+    if len(audio_bytes) > MAX_AUDIO_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="Audio file too large.")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(audio_bytes)
+        tmp_path = tmp.name
+    try:
+        transcript_text = transcribe_audio(tmp_path)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Transcription failed: {exc}")
+    finally:
+        os.unlink(tmp_path)
+
+    if not transcript_text.strip():
+        raise HTTPException(status_code=422, detail="Could not detect any speech in the audio")
+    return TranscribeResponse(transcript=transcript_text)
+
+
+class SpeakRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=5000)
+
+
+@router.post(
+    "/voice/speak",
+    dependencies=[Depends(RateLimitByUser(times=20, seconds=60))],
+)
+async def voice_speak(body: SpeakRequest, current_user: User = Depends(get_current_user)):
+    """Read a reply aloud with ElevenLabs. Returns audio/mpeg."""
+    if not settings.ELEVENLABS_API_KEY:
+        raise HTTPException(status_code=503, detail="ELEVENLABS_API_KEY not configured")
+    try:
+        audio = await synthesize_speech(body.text)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Text-to-speech failed: {exc}")
+    return Response(content=audio, media_type="audio/mpeg")
