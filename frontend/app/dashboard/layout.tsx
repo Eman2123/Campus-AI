@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { AppShell } from "@/components/dashboard/AppShell";
 import { DashboardProvider } from "@/components/dashboard/DashboardContext";
+import { OnboardingTour } from "@/components/dashboard/OnboardingTour";
 import { friendlyError } from "@/lib/api";
 import {
   DEFAULT_PREFS,
@@ -170,6 +171,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       }}
     >
       <AppShell>{children}</AppShell>
+      <OnboardingTour />
     </DashboardProvider>
   );
 }
