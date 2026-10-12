@@ -166,6 +166,7 @@ export function ChatView() {
   const modeRef = useRef<VoiceMode>("dictate");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [speakingKey, setSpeakingKey] = useState<string | null>(null);
+  const [showWhy, setShowWhy] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
@@ -478,7 +479,26 @@ export function ChatView() {
               )}
               <PixelButton size="sm" type="submit" aria-label="Send" disabled={busy || !text.trim()}>→</PixelButton>
             </form>
-            <p className="mt-2 text-center text-[11px] text-muted-onPaper">Campus AI can make mistakes. Check important info.</p>
+            <p className="mt-2 text-center text-[11px] text-muted-onPaper">
+              Campus AI can make mistakes. Check important info.{" "}
+              <button type="button" aria-expanded={showWhy} onClick={() => setShowWhy((v) => !v)} className="pixel-focus font-semibold underline">
+                {showWhy ? "Hide" : "Why?"}
+              </button>
+            </p>
+            {showWhy && (
+              <div className="mx-auto mt-2 max-w-xl border-2 border-brand-black bg-brand-yellow-soft p-3 text-left text-xs leading-relaxed">
+                <p className="font-pixel text-sm font-semibold">Why answers can be wrong</p>
+                <p className="mt-1">
+                  Campus AI writes answers from patterns, so it can sound sure and still be wrong. This is most likely with exact dates, numbers, quotes, formulas and recent events.
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-4">
+                  <li>For grades, deadlines and exam content, check your syllabus or your lecturer.</li>
+                  <li>When a reply uses your uploaded notes, compare it with the original page.</li>
+                  <li>Treat it as a study helper, not the only source of truth.</li>
+                  <li>Spot a wrong answer? Rephrase the question, or ask for the steps and the source.</li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </section>
