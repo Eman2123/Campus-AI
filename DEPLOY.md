@@ -85,6 +85,9 @@ The repository includes `backend/Dockerfile`, which applies migrations and then 
    | `ASSEMBLYAI_API_KEY` | optional, for voice |
    | `ELEVENLABS_API_KEY` | optional, for spoken replies (Read aloud, Talk mode) |
    | `GOOGLE_CLIENT_ID` | optional, for Google sign-in |
+   | `FORWARDED_ALLOW_IPS` | `*` on Render (see the note below) |
+
+   **Why `FORWARDED_ALLOW_IPS` matters:** the rate limiter keys on the client IP. Behind a proxy every request arrives from the proxy's address, so without this setting all users share one bucket (10 sign-ins/min, 5 sign-ups/min and 5 password resets/min *in total*), and one script could lock everyone out. The Docker image starts Uvicorn with `--proxy-headers --forwarded-allow-ips "$FORWARDED_ALLOW_IPS"`, which makes the real client IP (from `X-Forwarded-For`) visible to the limiter. The default is `127.0.0.1` (trust no outside proxy). Setting it to `*` is only safe when the host strips any client-supplied `X-Forwarded-For` before adding its own, as Render does; otherwise a client could spoof its IP and dodge the limits. If your platform publishes its proxy IP ranges, list those instead (comma-separated).
 
 4. Deploy, then check:
    ```text
