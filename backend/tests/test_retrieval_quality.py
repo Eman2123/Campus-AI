@@ -33,7 +33,7 @@ def test_irrelevant_document_is_filtered_out_when_a_real_key_is_configured(clien
     fake_embed = _orthogonal_embedding_fn("photosynthesis")
 
     with patch.object(settings, "AIML_API_KEY", "fake-key-for-test"), \
-         patch("app.core.rag_pipeline.get_embedding", side_effect=fake_embed), \
+         patch("app.core.rag_pipeline.get_embeddings", side_effect=lambda texts: [fake_embed(t) for t in texts]), \
          patch("app.agents.document.get_embedding", side_effect=fake_embed), \
          patch("app.core.subject_classifier.chat_completion", return_value="Biology"), \
          patch("app.agents.supervisor.classify_intent", return_value="document"):
