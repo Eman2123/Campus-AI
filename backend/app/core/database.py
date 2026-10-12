@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -13,7 +15,7 @@ from app.core.config import settings
 # pre_ping tests each connection before use and transparently reconnects.
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=(settings.ENV == "development"),
+    echo=(os.getenv("SQL_ECHO") == "1"),  # set SQL_ECHO=1 to print every statement
     pool_pre_ping=True,
     pool_recycle=240,
 )
