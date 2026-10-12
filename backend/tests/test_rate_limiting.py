@@ -23,7 +23,7 @@ def _signup(client, email: str | None = None):
 # ---------------------------------------------------------------------------
 
 
-def test_signup_allows_up_to_the_limit_then_429s(client):
+def test_signup_allows_up_to_the_limit_then_429s(client, frozen_limiter_clock):
     # The limiter's `times=5` for signup is a module-level constant set on
     # the route, not something this test can patch independently of the
     # route decorator — so this test proves the shape (N successes then a
@@ -37,7 +37,7 @@ def test_signup_allows_up_to_the_limit_then_429s(client):
     assert int(blocked.headers["Retry-After"]) >= 1
 
 
-def test_signin_is_rate_limited_independently_of_signup(client):
+def test_signin_is_rate_limited_independently_of_signup(client, frozen_limiter_clock):
     email = f"signin-rl-{uuid.uuid4()}@campus.ai"
     assert _signup(client, email).status_code == 201
 
@@ -182,7 +182,7 @@ def test_voice_chat_accepts_audio_under_the_size_cap(client, auth_headers):
     assert resp.status_code == 200
 
 
-def test_voice_chat_is_rate_limited_by_user(client, auth_headers):
+def test_voice_chat_is_rate_limited_by_user(client, auth_headers, frozen_limiter_clock):
     with patch.object(settings, "ASSEMBLYAI_API_KEY", "fake-key-for-test"), patch(
         "app.api.routes.voice.transcribe_audio", return_value="what is photosynthesis"
     ):
