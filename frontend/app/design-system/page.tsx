@@ -15,7 +15,7 @@ import { accent, brand } from "@/lib/design-tokens";
 
 // Internal reference page for the redesign. Not linked anywhere, not indexed.
 export const metadata: Metadata = {
-  title: "Design system",
+  title: "Design system — Campus AI",
   robots: { index: false, follow: false },
 };
 
