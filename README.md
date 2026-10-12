@@ -33,7 +33,7 @@ The platform also includes authentication (email and Google), voice input, persi
 | **Study Planner** | Give a deadline, get saved study sessions on a month/week calendar |
 | **Reminders & Digest** | Deadline reminder emails and a daily digest, plus `.ics` calendar export |
 | **File Organizer** | Uploads are auto-classified by subject and can be filed into Google Drive |
-| **Voice Input** | Record a question; it is transcribed and answered like a normal message |
+| **Voice** | Dictate (speech to text in the box) or Talk (agent answers out loud via ElevenLabs); Copy and Read aloud on every reply |
 | **Authentication** | Email/password, Google sign-in, password reset, "remember me" |
 | **Persistent Memory** | Chat history and LangGraph state stored in PostgreSQL; delete one chat or all of them |
 | **Settings** | Dark/light/system theme, week start, typewriter effect, motion and voice preferences |
@@ -218,6 +218,7 @@ Only `DATABASE_URL` and `JWT_SECRET_KEY` are required. Every integration degrade
 | `AIML_API_BASE_URL` · `AIML_MODEL` | `https://api.aimlapi.com/v1` · `gpt-4o-mini` | Any OpenAI-compatible endpoint and model |
 | `LLM_TIMEOUT_SECONDS` · `LLM_MAX_RETRIES` | `45` · `2` | LLM timeout and automatic retries |
 | `ASSEMBLYAI_API_KEY` | empty | Voice transcription |
+| `ELEVENLABS_API_KEY` | empty | Spoken replies (text-to-speech) |
 | `RESEND_API_KEY` · `EMAIL_FROM` | empty | Email delivery (only logged when empty) |
 | `GOOGLE_CLIENT_ID` | empty | "Continue with Google" (also set `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in the frontend) |
 | `GOOGLE_SERVICE_ACCOUNT_FILE` | empty | Drive filing (stubbed when empty) |
@@ -266,7 +267,7 @@ All routes live under `/api`; full details at `/docs`.
 | Area | Endpoints |
 |---|---|
 | Auth | `POST /auth/signup` · `/auth/signin` · `/auth/google` · `/auth/forgot-password` · `/auth/reset-password`, `GET/PATCH /auth/me`, `GET/PATCH /auth/me/preferences`, `DELETE /auth/me` |
-| Chat | `POST /chat` · `POST /chat/stream` (SSE) · `POST /voice/chat` |
+| Chat | `POST /chat` · `POST /chat/stream` (SSE) · `POST /voice/chat` · `POST /voice/transcribe` · `POST /voice/speak` |
 | Sessions | `GET /sessions` · `GET /sessions/{id}/messages` · `DELETE /sessions/{id}` · `DELETE /sessions` |
 | Documents | `POST /documents/upload` · `GET /documents` · `DELETE /documents/{id}` |
 | Schedule | `GET /schedule` · `GET /schedule/export.ics` · `POST /schedule/remind-me` · `POST /schedule/digest-me` |

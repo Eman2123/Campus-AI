@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { PixelBadge, PixelButton, PixelCard } from "@/components/pixel";
 import { friendlyError } from "@/lib/api";
-import { getSessionMessages, sendVoice, streamChat, uploadDocument } from "@/lib/dashboard-api";
+import { getSessionMessages, sendVoice, speakText, streamChat, transcribeVoice, uploadDocument } from "@/lib/dashboard-api";
 import { STARTERS, SUGGESTIONS, dayLabel, docBadge, startOfDay, toEvents } from "@/lib/dashboard-data";
 import { cn } from "@/lib/cn";
 
@@ -15,6 +15,22 @@ import { useDashboard } from "./DashboardContext";
 type Msg = { key: string; role: "user" | "assistant"; content: string; agent?: string | null; error?: boolean };
 
 const DAY_MS = 86_400_000;
+
+type VoiceMode = "dictate" | "talk";
+
+/** Strip markdown so the voice reads words, not symbols. */
+function plainForSpeech(md: string): string {
+  return md
+    .replace(/```[\s\S]*?```/g, " code block. ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/(\*\*|__|\*|_|~~)/g, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 4500);
+}
 
 function Icon({ d }: { d: string }) {
   return (
@@ -145,6 +161,10 @@ export function ChatView() {
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<MediaRecorder | null>(null);
+  const modeRef = useRef<VoiceMode>("dictate");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [speakingKey, setSpeakingKey] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
 
@@ -171,6 +191,8 @@ export function ChatView() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [msgs]);
+
+  useEffect(() => () => audioRef.current?.pause(), []);
 
   async function say(raw: string) {
     const value = raw.trim();
@@ -210,11 +232,59 @@ export function ChatView() {
     }
   }
 
-  async function toggleVoice() {
+  function stopSpeaking() {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setSpeakingKey(null);
+  }
+
+  async function speak(key: string, text: string) {
+    if (speakingKey === key) {
+      stopSpeaking();
+      return;
+    }
+    stopSpeaking();
+    setSpeakingKey(key);
+    try {
+      const blob = await speakText(token, plainForSpeech(text));
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      const done = () => {
+        URL.revokeObjectURL(url);
+        setSpeakingKey((k) => (k === key ? null : k));
+      };
+      audio.onended = done;
+      audio.onerror = done;
+      await audio.play();
+    } catch (err) {
+      setSpeakingKey(null);
+      setNote(friendlyError(err));
+    }
+  }
+
+  async function copyMessage(key: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+    } catch {
+      setNote("Could not copy. Select the text and copy it by hand.");
+    }
+  }
+
+  /**
+   * Two ways to use the microphone:
+   * - "dictate": your voice becomes text in the box; you review it and press send.
+   * - "talk": a voice conversation. The agents answer and the reply is read aloud.
+   */
+  async function toggleVoice(mode: VoiceMode) {
     if (recording) {
       recRef.current?.stop();
       return;
     }
+    stopSpeaking();
+    modeRef.current = mode;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream);
@@ -224,12 +294,21 @@ export function ChatView() {
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
         setBusy(true);
+        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
         try {
-          const r = await sendVoice(token, new Blob(chunks, { type: rec.mimeType || "audio/webm" }), activeSessionId);
-          const stamp = Date.now();
-          setMsgs((m) => [...m, { key: `u${stamp}`, role: "user", content: r.transcript }, { key: `a${stamp}`, role: "assistant", content: r.reply, agent: r.agent_used }]);
-          void refreshSessions();
-          void refreshSchedule();
+          if (modeRef.current === "dictate") {
+            const transcript = await transcribeVoice(token, blob);
+            setText((t) => (t ? `${t} ${transcript}` : transcript));
+            inputRef.current?.focus();
+          } else {
+            const r = await sendVoice(token, blob, activeSessionId);
+            const stamp = Date.now();
+            const aKey = `a${stamp}`;
+            setMsgs((m) => [...m, { key: `u${stamp}`, role: "user", content: r.transcript }, { key: aKey, role: "assistant", content: r.reply, agent: r.agent_used }]);
+            void refreshSessions();
+            void refreshSchedule();
+            void speak(aKey, r.reply);
+          }
         } catch (err) {
           setNote(friendlyError(err));
         } finally {
@@ -311,6 +390,28 @@ export function ChatView() {
                       <Markdown>{m.content}</Markdown>
                     )}
                   </PixelCard>
+                  {m.content && !m.error && (
+                    <div className="mt-1.5 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void copyMessage(m.key, m.content)}
+                        aria-label="Copy reply"
+                        title="Copy"
+                        className="pixel-focus border-2 border-transparent px-1.5 py-0.5 text-xs hover:border-brand-black hover:bg-brand-white"
+                      >
+                        {copiedKey === m.key ? "Copied ✓" : "Copy"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void speak(m.key, m.content)}
+                        aria-label={speakingKey === m.key ? "Stop reading" : "Read aloud"}
+                        title={speakingKey === m.key ? "Stop" : "Read aloud"}
+                        className="pixel-focus border-2 border-transparent px-1.5 py-0.5 text-xs hover:border-brand-black hover:bg-brand-white"
+                      >
+                        {speakingKey === m.key ? "■ Stop" : "🔊 Read aloud"}
+                      </button>
+                    </div>
+                  )}
                   {i === lastIdx && !busy && m.content && !m.error && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       <PixelButton size="sm" variant="secondary" onClick={() => say("Make flashcards from this.")}>Make flashcards</PixelButton>
@@ -346,16 +447,36 @@ export function ChatView() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 maxLength={4000}
-                placeholder={recording ? "Recording… press the mic to send" : "Ask anything about your notes…"}
+                placeholder={recording ? "Recording… press the button again to stop" : "Ask anything about your notes…"}
                 className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm outline-none"
               />
               {(prefs.voice_input || recording) && (
-                <PixelButton size="sm" variant={recording ? "primary" : "secondary"} aria-label={recording ? "Stop recording" : "Voice input"} disabled={busy && !recording} onClick={() => void toggleVoice()}>
-                  <Icon d="M9 3h6v12H9zM5 11a7 7 0 0014 0M12 18v3" />
-                </PixelButton>
+                <>
+                  <PixelButton
+                    size="sm"
+                    variant={recording && modeRef.current === "dictate" ? "primary" : "secondary"}
+                    aria-label={recording && modeRef.current === "dictate" ? "Stop dictating" : "Dictate: speak and get text"}
+                    title="Dictate: your voice becomes text"
+                    disabled={(busy && !recording) || (recording && modeRef.current !== "dictate")}
+                    onClick={() => void toggleVoice("dictate")}
+                  >
+                    <Icon d="M9 3h6v12H9zM5 11a7 7 0 0014 0M12 18v3" />
+                  </PixelButton>
+                  <PixelButton
+                    size="sm"
+                    variant={recording && modeRef.current === "talk" ? "primary" : "secondary"}
+                    aria-label={recording && modeRef.current === "talk" ? "Stop and send" : "Talk: voice conversation"}
+                    title="Talk: the agent answers out loud"
+                    disabled={(busy && !recording) || (recording && modeRef.current !== "talk")}
+                    onClick={() => void toggleVoice("talk")}
+                  >
+                    <Icon d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" />
+                  </PixelButton>
+                </>
               )}
               <PixelButton size="sm" type="submit" aria-label="Send" disabled={busy || !text.trim()}>→</PixelButton>
             </form>
+            <p className="mt-2 text-center text-[11px] text-muted-onPaper">Campus AI can make mistakes. Check important info.</p>
           </div>
         </div>
       </section>
