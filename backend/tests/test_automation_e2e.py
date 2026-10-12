@@ -51,7 +51,7 @@ def test_full_automation_journey(client, auth_headers):
     assert near_resp.status_code == 200
     near_body = near_resp.json()
     assert near_body["agent_used"] == "planner"
-    assert "export.ics" in near_body["reply"]
+    assert "calendar file" in near_body["reply"]
     if chem_subject_matched:
         # Day 24 wiring: Planner should point back at the material
         # already uploaded for this subject.

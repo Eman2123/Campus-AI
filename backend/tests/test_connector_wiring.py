@@ -58,7 +58,7 @@ def test_planner_calendar_reply_mentions_the_real_export_endpoint(client, auth_h
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert "export.ics" in body["reply"]
+    assert "calendar file" in body["reply"]
 
 
 def test_document_agent_scopes_retrieval_to_a_named_subject(client, auth_headers):

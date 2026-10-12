@@ -78,13 +78,46 @@ def _extract_deadline_heuristic(text: str) -> dict | None:
     return {"title": topic[:255], "topic": topic, "due_date": due_date}
 
 
+_EXPLICIT_YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
+
+
+def _roll_forward_if_past(extraction: dict | None, text: str, now: datetime) -> dict | None:
+    """A date typed without a year ("October 14") means the next time it
+    comes round, never a year that has already gone by. The model can pick
+    a stale year from its training data, so correct that here instead of
+    saving a deadline that is already in the past. A year the student
+    wrote out explicitly is left exactly as given."""
+    if extraction is None or _EXPLICIT_YEAR.search(text):
+        return extraction
+    due_date = extraction["due_date"]
+    for _ in range(2):
+        if due_date.date() >= now.date():
+            break
+        try:
+            due_date = due_date.replace(year=max(due_date.year + 1, now.year))
+        except ValueError:  # Feb 29 in a non-leap year
+            due_date = due_date.replace(year=due_date.year + 1, day=28)
+    return {**extraction, "due_date": due_date}
+
+
 async def extract_deadline(text: str) -> dict | None:
+    now = datetime.now(timezone.utc)
+    extraction = await _extract_deadline_raw(text, now)
+    return _roll_forward_if_past(extraction, text, now)
+
+
+async def _extract_deadline_raw(text: str, now: datetime) -> dict | None:
     if settings.AIML_API_KEY:
         try:
+            system_prompt = (
+                f"{PLANNER_EXTRACTION_PROMPT}\n\n"
+                f"Today's date is {now:%Y-%m-%d}. If the message gives a date without a year, "
+                "use the next occurrence of that date on or after today."
+            )
             raw = await asyncio.to_thread(
                 chat_completion,
                 messages=[
-                    {"role": "system", "content": PLANNER_EXTRACTION_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": text},
                 ],
                 temperature=0,
@@ -205,9 +238,9 @@ def _format_reply(
 
     if saved:
         lines.append(
-            "\nI've added these to your schedule — download them anytime as a calendar file "
-            "(GET /api/schedule/export.ics) to drop into your own calendar app, and you'll get an "
-            "email reminder as the deadline gets close plus a daily digest in the meantime."
+            "\nI've added these to your schedule. You can download them as a calendar file from the "
+            "Calendar page to drop into your own calendar app, and you'll get an email reminder as "
+            "the deadline gets close plus a daily digest in the meantime."
         )
     else:
         lines.append("\n(Couldn't save this to your schedule just now, but the plan above still stands.)")
