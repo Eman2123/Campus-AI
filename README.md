@@ -286,7 +286,7 @@ cd backend
 pytest -q
 ```
 
-The suite runs against a real PostgreSQL + pgvector database, so point `DATABASE_URL` at a **throw-away database**. It does not need an LLM key. GitHub Actions runs the frontend checks (`tsc`, lint, build) and the backend migrations plus tests on every push.
+The suite runs against a real PostgreSQL + pgvector database and creates real users and documents in it, so use a **throw-away database**: set `TEST_DATABASE_URL` (it overrides `DATABASE_URL` for the test run, and the pytest header shows which host is being used). External AI, email, speech and Drive calls are switched off during tests (the app's built-in fallbacks are used), so no API keys are needed and the suite runs in minutes; set `TEST_WITH_REAL_AI=1` to run against the real services instead. GitHub Actions runs the frontend checks (`tsc`, lint, build) and the backend migrations plus tests on every push.
 
 ## Troubleshooting
 

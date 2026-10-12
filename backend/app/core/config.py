@@ -44,8 +44,20 @@ class Settings(BaseSettings):
     # reject good matches at random rather than actually improve anything.
     DOCUMENT_MAX_COSINE_DISTANCE: float = 0.9
 
-    # Redis (session cache / LangGraph checkpointing)
-    REDIS_URL: str = "redis://localhost:6379/0"
+    # Number of reverse proxies in front of the app that you trust to set
+    # X-Forwarded-For (Render, Fly, FastAPI Cloud, nginx, ...). 0 = trust
+    # none and use the socket peer address. Behind a proxy this MUST be set
+    # (usually 1), otherwise every user shares the proxy's IP and the
+    # per-IP signin/signup rate limits lock everybody out together. Leave
+    # it at 0 when the app is exposed directly, since a client could
+    # otherwise spoof its own IP.
+    TRUSTED_PROXY_COUNT: int = 0
+
+    # Documents whose background processing (embedding / File Organizer)
+    # never finished — e.g. the server restarted mid-task — are picked up
+    # again at startup once they're older than this many minutes.
+    RECOVER_STUCK_DOCUMENTS_ON_STARTUP: bool = True
+    STUCK_DOCUMENT_MINUTES: int = 10
 
     # Auth
     JWT_SECRET_KEY: str

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import time
@@ -11,6 +12,7 @@ from fastapi.responses import JSONResponse
 from app.agents.graph import campus_ai_graph
 from app.core.checkpointer import attach_postgres_checkpointer
 from app.core.config import settings
+from app.core.document_recovery import recover_stuck_documents
 from app.core.logging_config import setup_logging
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.api.routes import health, auth, agent, voice, documents, schedule, sessions, admin
@@ -42,7 +44,25 @@ async def lifespan(app: FastAPI):
     # stopped cleanly on shutdown so it doesn't outlive the process (or,
     # in tests, outlive the TestClient session that started it).
     start_scheduler()
+
+    if settings.ENV.lower() == "production" and not os.path.isabs(settings.UPLOAD_DIR):
+        logger.warning(
+            "UPLOAD_DIR=%r is a relative local path. On hosts with an ephemeral filesystem, "
+            "uploaded files are lost on every redeploy — mount a persistent volume and point "
+            "UPLOAD_DIR at it (see DEPLOY.md).",
+            settings.UPLOAD_DIR,
+        )
+
+    # Uploads whose background processing was cut short by an earlier
+    # restart get picked up again — in the background, so startup isn't held up.
+    recovery_task = None
+    if settings.RECOVER_STUCK_DOCUMENTS_ON_STARTUP:
+        recovery_task = asyncio.create_task(recover_stuck_documents())
+
     yield
+
+    if recovery_task is not None and not recovery_task.done():
+        recovery_task.cancel()
     stop_scheduler()
 
 

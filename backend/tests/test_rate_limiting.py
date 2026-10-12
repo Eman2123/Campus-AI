@@ -4,9 +4,25 @@ Secrets-audit (backend/.gitignore) has no code behavior to test, so it's
 documented in README.md instead; nothing to assert here.
 """
 import uuid
+from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
+from app.core import rate_limit
 from app.core.config import settings
+
+
+@pytest.fixture(autouse=True)
+def _frozen_limiter_clock():
+    """The limiter uses a 60-second sliding window. Tests that send 10-20
+    requests to hit the limit are only valid if all of them land inside one
+    window — with a slow database (or real LLM calls) the early requests
+    would otherwise expire before the last one is sent and the expected 429
+    never comes. Freezing the limiter's own clock makes that independent of
+    how fast the machine or network is."""
+    with patch("app.core.rate_limit._now", return_value=1000.0):
+        yield
 
 
 def _signup(client, email: str | None = None):
@@ -185,3 +201,78 @@ def test_voice_chat_is_rate_limited_by_user(client, auth_headers):
             headers=auth_headers,
         )
     assert blocked.status_code == 429
+
+
+# ---------------------------------------------------------------------------
+# Limiter internals — client IP resolution, window expiry, idle-key sweep
+# ---------------------------------------------------------------------------
+
+
+def _fake_request(forwarded: str | None, peer: str | None = "10.0.0.5"):
+    headers = {"x-forwarded-for": forwarded} if forwarded is not None else {}
+    client = SimpleNamespace(host=peer) if peer else None
+    return SimpleNamespace(headers=headers, client=client)
+
+
+def test_client_ip_ignores_x_forwarded_for_by_default():
+    with patch.object(settings, "TRUSTED_PROXY_COUNT", 0):
+        assert rate_limit._client_ip(_fake_request("1.2.3.4")) == "10.0.0.5"
+
+
+def test_client_ip_uses_the_entry_added_by_the_trusted_proxy():
+    # A client can forge the left-hand entries; the trusted proxy appends the
+    # address it actually saw, so with one trusted proxy the rightmost wins.
+    with patch.object(settings, "TRUSTED_PROXY_COUNT", 1):
+        assert rate_limit._client_ip(_fake_request("6.6.6.6, 203.0.113.9")) == "203.0.113.9"
+
+
+def test_client_ip_skips_two_trusted_hops():
+    with patch.object(settings, "TRUSTED_PROXY_COUNT", 2):
+        assert rate_limit._client_ip(_fake_request("6.6.6.6, 203.0.113.9, 10.1.1.1")) == "203.0.113.9"
+
+
+def test_client_ip_falls_back_to_peer_when_header_is_missing_or_too_short():
+    with patch.object(settings, "TRUSTED_PROXY_COUNT", 2):
+        assert rate_limit._client_ip(_fake_request(None)) == "10.0.0.5"
+        assert rate_limit._client_ip(_fake_request("203.0.113.9")) == "10.0.0.5"
+    with patch.object(settings, "TRUSTED_PROXY_COUNT", 0):
+        assert rate_limit._client_ip(_fake_request(None, peer=None)) == "unknown"
+
+
+def test_limiter_allows_again_once_the_window_has_passed():
+    from fastapi import HTTPException
+
+    clock = {"t": 1000.0}
+    with patch("app.core.rate_limit._now", side_effect=lambda: clock["t"]):
+        for _ in range(3):
+            rate_limit._check("test:window", times=3, seconds=60)
+
+        with pytest.raises(HTTPException) as blocked:
+            rate_limit._check("test:window", times=3, seconds=60)
+        assert blocked.value.status_code == 429
+
+        clock["t"] += 61
+        rate_limit._check("test:window", times=3, seconds=60)  # window passed -> allowed again
+
+
+def test_sweep_drops_idle_and_empty_keys_but_keeps_recent_ones():
+    now = 10_000.0
+    rate_limit._buckets["idle"].append(now - rate_limit._MAX_IDLE_SECONDS - 1)
+    rate_limit._buckets["recent"].append(now - 5)
+    rate_limit._buckets["empty"].clear()  # touching a defaultdict key creates an empty bucket
+
+    rate_limit._sweep(now)
+
+    assert "idle" not in rate_limit._buckets
+    assert "empty" not in rate_limit._buckets
+    assert "recent" in rate_limit._buckets
+
+
+def test_check_runs_the_sweep_periodically():
+    rate_limit._buckets["stale"].append(0.0)
+    with patch("app.core.rate_limit._now", return_value=rate_limit._MAX_IDLE_SECONDS + 10.0), patch.object(
+        rate_limit, "_calls_since_sweep", rate_limit._SWEEP_EVERY_N_CALLS - 1
+    ):
+        rate_limit._check("test:trigger", times=5, seconds=60)
+
+    assert "stale" not in rate_limit._buckets

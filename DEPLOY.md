@@ -47,6 +47,12 @@ fastapi cloud env set FRONTEND_URL "https://your-frontend.vercel.app"
 fastapi cloud env set ADMIN_EMAILS '["you@example.com"]'
 ```
 
+Also set `TRUSTED_PROXY_COUNT` to `1`: the app runs behind the platform's proxy, and without it every visitor shares the proxy's IP, so the per-IP sign-in/sign-up rate limits would lock everyone out together.
+
+```bash
+fastapi cloud env set TRUSTED_PROXY_COUNT 1
+```
+
 Optional: `RESEND_API_KEY`, `EMAIL_FROM`, `ASSEMBLYAI_API_KEY`, `GOOGLE_CLIENT_ID`.
 
 Deploy:
@@ -103,6 +109,8 @@ docker run --env-file .env -p 8000:8000 campus-ai-backend
 #### Notes
 
 - Run **one worker/instance**: the rate limiter keeps its counters in memory.
+- Set `TRUSTED_PROXY_COUNT=1` (Render and most hosts put one proxy in front of the app), otherwise the per-IP rate limits are shared by all visitors.
+- Documents left unfinished by a restart are re-processed automatically at startup (`RECOVER_STUCK_DOCUMENTS_ON_STARTUP`, on by default).
 - Uploaded files are written to `UPLOAD_DIR` on local disk. On hosts with an ephemeral filesystem (Render free tier) they disappear on redeploy; attach a persistent disk or move storage to object storage for real use.
 - Free tiers sleep when idle, so the first request after a pause can be slow.
 

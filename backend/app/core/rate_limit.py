@@ -1,18 +1,15 @@
 """Day 38 — rate limiting.
 
-An in-memory sliding-window limiter, not a Redis-backed one. `REDIS_URL`
-has existed in settings since Day 1, but nothing in this codebase has
-ever actually connected to Redis with it — LangGraph's checkpointing
-moved to Postgres on Day 13 (see app/core/checkpointer.py), and no
-other caching layer was ever added. Standing up a real Redis connection
-for rate-limiting alone, in a sandbox that can't verify one is even
-reachable, would be a bigger and riskier change than this day's scope
-calls for. The honest limitation this creates: counts are per-process,
-not shared across multiple uvicorn workers — fine for this project's
-single-worker deployment target (see the Day 39 deployment notes),
-but the first thing to swap for a real multi-worker or multi-instance
-deployment is this module's in-memory `_buckets` for a Redis (or
-Postgres) backed store with the same `_check()` interface.
+An in-memory sliding-window limiter, not a Redis-backed one. LangGraph's
+checkpointing moved to Postgres on Day 13 (see app/core/checkpointer.py),
+and no other caching layer exists, so standing up Redis for rate-limiting
+alone would be a bigger and riskier change than this module's scope calls
+for. The honest limitation this creates: counts are per-process, not
+shared across multiple uvicorn workers and reset on restart — fine for
+this project's single-worker deployment target (see DEPLOY.md), but the
+first thing to swap for a multi-worker or multi-instance deployment is
+this module's in-memory `_buckets` for a Redis (or Postgres) backed store
+with the same `_check()` interface.
 """
 import time
 from collections import defaultdict, deque
@@ -20,20 +17,44 @@ from collections import defaultdict, deque
 from fastapi import Depends, HTTPException, Request, status
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.models.user import User
 
 # key -> deque of monotonic timestamps of recent hits within the window.
-# Never explicitly pruned between requests for keys that go quiet — an
-# old IP's empty-but-present deque is cheap (a handful of bytes), but a
-# process that runs for a very long time against a very large number of
-# distinct IPs/users will see this dict grow unbounded. Acceptable for
-# this project's scale; a Redis-backed store would get TTL-based
-# expiry for free instead.
 _buckets: dict[str, deque] = defaultdict(deque)
+
+# Keys that go quiet are dropped by a periodic sweep so a long-running
+# process facing many distinct IPs/users doesn't grow `_buckets` forever.
+# Every limiter window in this app is far shorter than this, so a key idle
+# for this long can never still be inside its window.
+_MAX_IDLE_SECONDS = 3600
+_SWEEP_EVERY_N_CALLS = 500
+_calls_since_sweep = 0
+
+
+def _now() -> float:
+    """Single clock source for the limiter. Tests patch this (rather than
+    the global `time.monotonic`) to make window expiry deterministic."""
+    return time.monotonic()
+
+
+def _sweep(now: float) -> None:
+    idle_cutoff = now - _MAX_IDLE_SECONDS
+    stale = [key for key, bucket in _buckets.items() if not bucket or bucket[-1] < idle_cutoff]
+    for key in stale:
+        del _buckets[key]
 
 
 def _check(key: str, times: int, seconds: int) -> None:
-    now = time.monotonic()
+    global _calls_since_sweep
+
+    now = _now()
+
+    _calls_since_sweep += 1
+    if _calls_since_sweep >= _SWEEP_EVERY_N_CALLS:
+        _calls_since_sweep = 0
+        _sweep(now)
+
     bucket = _buckets[key]
     cutoff = now - seconds
     while bucket and bucket[0] < cutoff:
@@ -51,12 +72,22 @@ def _check(key: str, times: int, seconds: int) -> None:
 
 
 def _client_ip(request: Request) -> str:
-    # No reverse-proxy X-Forwarded-For trust configured — this project
-    # has no documented reverse-proxy deployment yet (Day 39 picks a
-    # host), so trusting that header here would let a client spoof a
-    # different rate-limit bucket for itself. request.client.host is
-    # what the ASGI server itself observed, which can't be spoofed the
-    # same way.
+    """The caller's IP, for per-IP limits.
+
+    By default only the socket peer address is used, which can't be
+    spoofed. When the app sits behind reverse proxies you control, set
+    TRUSTED_PROXY_COUNT to how many there are: the real client is then the
+    Nth entry from the *right* of X-Forwarded-For (each trusted proxy
+    appends the address it saw), so anything a client forges on the left
+    is ignored. If the header is missing or shorter than expected, fall
+    back to the peer address rather than trusting a partial chain.
+    """
+    hops = settings.TRUSTED_PROXY_COUNT
+    if hops > 0:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        parts = [part.strip() for part in forwarded.split(",") if part.strip()]
+        if len(parts) >= hops:
+            return parts[-hops]
     return request.client.host if request.client else "unknown"
 
 
