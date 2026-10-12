@@ -22,19 +22,40 @@ from fastapi import Depends, HTTPException, Request, status
 from app.api.deps import get_current_user
 from app.models.user import User
 
-# key -> deque of monotonic timestamps of recent hits within the window.
-# Never explicitly pruned between requests for keys that go quiet — an
-# old IP's empty-but-present deque is cheap (a handful of bytes), but a
-# process that runs for a very long time against a very large number of
-# distinct IPs/users will see this dict grow unbounded. Acceptable for
-# this project's scale; a Redis-backed store would get TTL-based
-# expiry for free instead.
-_buckets: dict[str, deque] = defaultdict(deque)
+class _Bucket(deque):
+    """Recent hit timestamps for one key, plus the window they count in (so a
+    sweep knows when a quiet bucket is safe to drop)."""
+
+    window: int = 60
+
+
+# key -> bucket of monotonic timestamps of recent hits within the window.
+_buckets: dict[str, _Bucket] = defaultdict(_Bucket)
+
+# Quiet keys are swept out at most this often, so a long-running process
+# facing many distinct IPs/users doesn't grow this dict forever.
+_PRUNE_EVERY_SECONDS = 60
+_last_prune = 0.0
+
+
+def _prune(now: float) -> int:
+    """Drops buckets whose newest hit is older than their window. Returns how
+    many were removed."""
+    stale = [key for key, bucket in _buckets.items() if not bucket or bucket[-1] < now - bucket.window]
+    for key in stale:
+        del _buckets[key]
+    return len(stale)
 
 
 def _check(key: str, times: int, seconds: int) -> None:
+    global _last_prune
     now = time.monotonic()
+    if now - _last_prune >= _PRUNE_EVERY_SECONDS:
+        _last_prune = now
+        _prune(now)
+
     bucket = _buckets[key]
+    bucket.window = seconds
     cutoff = now - seconds
     while bucket and bucket[0] < cutoff:
         bucket.popleft()
@@ -51,12 +72,14 @@ def _check(key: str, times: int, seconds: int) -> None:
 
 
 def _client_ip(request: Request) -> str:
-    # No reverse-proxy X-Forwarded-For trust configured — this project
-    # has no documented reverse-proxy deployment yet (Day 39 picks a
-    # host), so trusting that header here would let a client spoof a
-    # different rate-limit bucket for itself. request.client.host is
-    # what the ASGI server itself observed, which can't be spoofed the
-    # same way.
+    # request.client.host is whatever the ASGI server reports. Behind a
+    # reverse proxy (Render, FastAPI Cloud, nginx...) that is the PROXY's
+    # address unless uvicorn runs with --proxy-headers and the proxy is
+    # listed in --forwarded-allow-ips; then uvicorn rewrites it to the real
+    # client from X-Forwarded-For. The Dockerfile starts uvicorn that way
+    # (see FORWARDED_ALLOW_IPS in DEPLOY.md). We deliberately do not parse
+    # X-Forwarded-For ourselves: uvicorn only honours it from trusted
+    # proxies, so a client can't spoof its own bucket.
     return request.client.host if request.client else "unknown"
 
 
