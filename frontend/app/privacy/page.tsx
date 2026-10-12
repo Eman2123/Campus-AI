@@ -56,6 +56,7 @@ export default function PrivacyPage() {
       <ul>
         <li>An AI model provider (AIML API) receives your question and the relevant excerpts of your notes to write answers and compute embeddings.</li>
         <li>AssemblyAI transcribes voice recordings.</li>
+        <li>ElevenLabs turns a reply into speech when you use Read aloud or Talk (it receives the text of that reply).</li>
         <li>Resend delivers emails such as password resets and reminders.</li>
         <li>Google, only if you choose Google sign-in or turn on Drive filing.</li>
         <li>Our hosting and database providers store the app and your data.</li>
