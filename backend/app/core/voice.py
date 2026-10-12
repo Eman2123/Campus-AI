@@ -17,3 +17,18 @@ def transcribe_audio(file_path: str) -> str:
         raise RuntimeError(transcript.error)
 
     return transcript.text or ""
+
+
+async def synthesize_speech(text: str) -> bytes:
+    """ElevenLabs text-to-speech. Returns MP3 bytes; raises httpx errors on failure."""
+    import httpx
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{settings.ELEVENLABS_VOICE_ID}"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        res = await client.post(
+            url,
+            headers={"xi-api-key": settings.ELEVENLABS_API_KEY, "Accept": "audio/mpeg"},
+            json={"text": text, "model_id": settings.ELEVENLABS_MODEL_ID},
+        )
+        res.raise_for_status()
+        return res.content

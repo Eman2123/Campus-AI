@@ -108,6 +108,10 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: float = 45.0
     LLM_MAX_RETRIES: int = 2
     ASSEMBLYAI_API_KEY: str = ""
+    # Text-to-speech for spoken replies (optional). Voice id defaults to ElevenLabs' "Rachel".
+    ELEVENLABS_API_KEY: str = ""
+    ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
+    ELEVENLABS_MODEL_ID: str = "eleven_multilingual_v2"
 
     # Observability (Day 15) — optional. LangSmith auto-instruments
     # LangGraph/LangChain calls via these env vars; leave LANGCHAIN_API_KEY

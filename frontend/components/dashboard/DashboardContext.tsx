@@ -9,6 +9,8 @@ export type DashboardCtx = {
   user: AuthUser;
   token: string;
   signOut: () => void;
+  /** No confirmation prompt; only for flows that already confirmed. */
+  signOutNow: () => void;
   sessions: SessionSummary[];
   refreshSessions: () => Promise<void>;
   docs: DocumentItem[];

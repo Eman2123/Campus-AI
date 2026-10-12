@@ -47,7 +47,7 @@ fastapi cloud env set FRONTEND_URL "https://your-frontend.vercel.app"
 fastapi cloud env set ADMIN_EMAILS '["you@example.com"]'
 ```
 
-Optional: `RESEND_API_KEY`, `EMAIL_FROM`, `ASSEMBLYAI_API_KEY`, `GOOGLE_CLIENT_ID`.
+Optional: `RESEND_API_KEY`, `EMAIL_FROM`, `ASSEMBLYAI_API_KEY`, `ELEVENLABS_API_KEY`, `GOOGLE_CLIENT_ID`.
 
 Deploy:
 
@@ -83,6 +83,7 @@ The repository includes `backend/Dockerfile`, which applies migrations and then 
    | `AIML_API_KEY` | your LLM key |
    | `RESEND_API_KEY` · `EMAIL_FROM` | optional, for real emails |
    | `ASSEMBLYAI_API_KEY` | optional, for voice |
+   | `ELEVENLABS_API_KEY` | optional, for spoken replies (Read aloud, Talk mode) |
    | `GOOGLE_CLIENT_ID` | optional, for Google sign-in |
 
 4. Deploy, then check:
