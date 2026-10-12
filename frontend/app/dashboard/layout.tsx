@@ -25,7 +25,7 @@ import { newSessionId } from "@/lib/dashboard-data";
 import { useAuthGuard } from "@/lib/useAuthGuard";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, setUser, token, loading, signOut } = useAuthGuard();
+  const { user, setUser, token, loading, signOut, forceSignOut } = useAuthGuard();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
@@ -151,6 +151,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         user,
         token,
         signOut,
+        forceSignOut,
         sessions,
         refreshSessions,
         docs,

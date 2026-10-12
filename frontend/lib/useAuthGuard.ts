@@ -10,8 +10,13 @@ type AuthGuardResult = {
   setUser: (user: AuthUser) => void;
   token: string | null;
   loading: boolean;
+  /** Asks "Sign out?" first; does nothing if the person cancels. Use for every Sign out button. */
   signOut: () => void;
+  /** Signs out immediately with no prompt — only for flows where the session is already over (e.g. after the account is deleted). */
+  forceSignOut: () => void;
 };
+
+export const SIGN_OUT_CONFIRM_MESSAGE = "Sign out of Campus AI on this device?";
 
 /**
  * Shared by every signed-in page: redirects to /signin when there is no
@@ -43,12 +48,19 @@ export function useAuthGuard(): AuthGuardResult {
       .finally(() => setLoading(false));
   }, [router]);
 
-  function signOut() {
+  function forceSignOut() {
     clearToken();
     router.replace("/signin");
   }
 
-  return { user, setUser, token, loading, signOut };
+  // Takes no parameters on purpose: it's passed straight to `onClick`, which
+  // would otherwise hand the click event in as an argument.
+  function signOut() {
+    if (!window.confirm(SIGN_OUT_CONFIRM_MESSAGE)) return;
+    forceSignOut();
+  }
+
+  return { user, setUser, token, loading, signOut, forceSignOut };
 }
 
 /**

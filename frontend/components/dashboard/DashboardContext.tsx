@@ -8,7 +8,10 @@ import type { DocumentItem, Preferences, ScheduleItem, SessionSummary } from "@/
 export type DashboardCtx = {
   user: AuthUser;
   token: string;
+  /** Asks for confirmation first. */
   signOut: () => void;
+  /** No prompt — only for after the account has been deleted. */
+  forceSignOut: () => void;
   sessions: SessionSummary[];
   refreshSessions: () => Promise<void>;
   docs: DocumentItem[];

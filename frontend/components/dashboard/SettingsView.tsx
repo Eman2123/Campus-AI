@@ -68,7 +68,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function SettingsView() {
-  const { user, token, signOut, docs, refreshDocs, clearHistory, renameUser, prefs, setPref } = useDashboard();
+  const { user, token, signOut, forceSignOut, docs, refreshDocs, clearHistory, renameUser, prefs, setPref } = useDashboard();
   const [theme, setTheme] = useState<ThemePref>("Light");
   useEffect(() => setTheme(getThemePref()), []);
   const [name, setName] = useState(user.name ?? "");
@@ -102,7 +102,7 @@ export function SettingsView() {
       const typed = window.prompt(`This permanently deletes your account, chats, documents and schedule.\n\nType your email (${user.email}) to confirm:`);
       if (typed === null) return "";
       await deleteAccount(token, typed.trim());
-      signOut();
+      forceSignOut(); // account is already gone — no "are you sure?"
       return "Account deleted.";
     });
 
