@@ -5,6 +5,7 @@ a *sync* PostgresSaver for a graph that's always driven with ainvoke().
 See app/core/checkpointer.py's docstrings for the full story.
 """
 import asyncio
+import logging
 from unittest.mock import patch
 
 from langgraph.checkpoint.memory import MemorySaver
@@ -45,7 +46,7 @@ def test_attach_postgres_checkpointer_falls_back_quietly_on_bad_connection():
     assert graph.checkpointer is placeholder
 
 
-def test_attach_postgres_checkpointer_swaps_in_a_real_async_saver():
+def test_attach_postgres_checkpointer_swaps_in_a_real_async_saver(caplog):
     """Against the real DATABASE_URL (the same Neon DB every other test
     in this suite already uses), the swap should actually happen, and
     the resulting checkpointer must implement the ASYNC interface — this
@@ -58,6 +59,18 @@ def test_attach_postgres_checkpointer_swaps_in_a_real_async_saver():
     placeholder = MemorySaver()
     graph = _FakeGraph(placeholder)
 
-    asyncio.run(attach_postgres_checkpointer(graph))
+    # psycopg's async mode cannot run on Windows' default ProactorEventLoop
+    # ("Psycopg cannot use the 'ProactorEventLoop' to run in async mode"),
+    # which is what a bare asyncio.run() creates there. The app avoids this
+    # under uvicorn; here we ask for a selector loop explicitly so the test
+    # behaves the same on Windows, Linux and macOS.
+    loop = asyncio.SelectorEventLoop()
+    try:
+        with caplog.at_level(logging.WARNING, logger="app.core.checkpointer"):
+            loop.run_until_complete(attach_postgres_checkpointer(graph))
+    finally:
+        loop.close()
 
-    assert isinstance(graph.checkpointer, AsyncPostgresSaver)
+    assert isinstance(graph.checkpointer, AsyncPostgresSaver), (
+        "checkpointer stayed on MemorySaver; reason logged: " + " | ".join(r.getMessage() for r in caplog.records)
+    )
