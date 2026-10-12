@@ -10,7 +10,10 @@ type AuthGuardResult = {
   setUser: (user: AuthUser) => void;
   token: string | null;
   loading: boolean;
+  /** Asks "Are you sure?" first; does nothing if the user cancels. */
   signOut: () => void;
+  /** Signs out immediately, no prompt (for flows that already confirmed, e.g. account deletion). */
+  signOutNow: () => void;
 };
 
 /**
@@ -43,12 +46,17 @@ export function useAuthGuard(): AuthGuardResult {
       .finally(() => setLoading(false));
   }, [router]);
 
-  function signOut() {
+  function signOutNow() {
     clearToken();
     router.replace("/signin");
   }
 
-  return { user, setUser, token, loading, signOut };
+  function signOut() {
+    if (!window.confirm("Sign out of Campus AI?")) return;
+    signOutNow();
+  }
+
+  return { user, setUser, token, loading, signOut, signOutNow };
 }
 
 /**

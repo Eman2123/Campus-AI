@@ -102,6 +102,24 @@ export async function sendVoice(token: string, audio: Blob, sessionId: string): 
   return (await res.json()) as VoiceReply;
 }
 
+/** Dictation: audio in, text out (nothing is sent to the agents). */
+export async function transcribeVoice(token: string, audio: Blob): Promise<string> {
+  const form = new FormData();
+  form.append("audio", audio, "voice.webm");
+  const res = await send("/api/voice/transcribe", { method: "POST", body: form }, token);
+  return ((await res.json()) as { transcript: string }).transcript;
+}
+
+/** Text-to-speech (ElevenLabs on the server). Resolves to an MP3 blob. */
+export async function speakText(token: string, text: string): Promise<Blob> {
+  const res = await send(
+    "/api/voice/speak",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) },
+    token,
+  );
+  return await res.blob();
+}
+
 type StreamHandlers = {
   onToken: (chunk: string) => void;
   onDone: (agentUsed: string) => void;
