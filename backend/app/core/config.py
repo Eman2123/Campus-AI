@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     # merged into the one before it instead of standing alone (avoids
     # near-empty chunks that add retrieval noise without adding signal).
     MIN_CHUNK_WORDS: int = 40
+    # Embedding calls are batched (one API request per this many chunks, not
+    # one per chunk), and a document may not exceed MAX_CHUNKS_PER_DOCUMENT
+    # chunks (about 150k words at the default chunk size); a bigger one is
+    # rejected as "failed" instead of tying up the server and the embedding
+    # quota.
+    EMBEDDING_BATCH_SIZE: int = 64
+    MAX_CHUNKS_PER_DOCUMENT: int = 500
 
     # Document Agent retrieval (Day 18) — how many nearest chunks (by cosine
     # distance) to pull into the grounded-QA context per question.

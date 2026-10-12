@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -101,7 +102,10 @@ async def send_daily_digests(user_id: str | None = None) -> int:
         user = users_by_id[key]
         subject, body = format_digest_email(items)
         try:
-            send_email(to=user.email, subject=subject, body=body, html=format_digest_html(items))
+            # blocking HTTP call: keep it off the event loop
+            await asyncio.to_thread(
+                send_email, to=user.email, subject=subject, body=body, html=format_digest_html(items)
+            )
             sent += 1
         except Exception as exc:
             logger.exception("failed to send digest for user=%s: %s", key, exc)

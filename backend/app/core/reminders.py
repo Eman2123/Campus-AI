@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -83,7 +84,9 @@ async def send_deadline_reminders(user_id: str | None = None) -> int:
                 continue
             subject, body = format_reminder_email(schedule.title, schedule.due_date)
             try:
-                send_email(
+                # send_email is a blocking HTTP call: keep it off the event loop.
+                await asyncio.to_thread(
+                    send_email,
                     to=user.email,
                     subject=subject,
                     body=body,
