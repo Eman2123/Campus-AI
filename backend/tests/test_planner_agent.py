@@ -79,3 +79,19 @@ def test_planner_agent_builds_and_saves_a_study_plan(client, auth_headers):
     assert body["reply"] != CLARIFY_NO_DATE_REPLY
     assert "study plan" in body["reply"].lower()
     assert "added these to your schedule" in body["reply"].lower()
+
+
+def test_date_without_a_year_never_lands_in_the_past():
+    from datetime import datetime, timezone
+
+    from app.agents.planner import _roll_forward_if_past
+
+    now = datetime(2026, 10, 12, tzinfo=timezone.utc)
+    stale = {"title": "Biology Midterm", "topic": "Biology", "due_date": datetime(2023, 10, 14, tzinfo=timezone.utc)}
+
+    rolled = _roll_forward_if_past(stale, "Help me plan for my Biology midterm on October 14", now)
+    assert rolled["due_date"].date() == datetime(2026, 10, 14).date()
+
+    # A year the student typed out is respected, even if it is in the past.
+    kept = _roll_forward_if_past(stale, "Biology midterm on October 14, 2023", now)
+    assert kept["due_date"].year == 2023
