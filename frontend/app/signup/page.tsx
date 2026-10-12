@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { SignUpForm } from "@/components/auth/SignUpForm";
 
-export const metadata: Metadata = { title: "Get started · Campus AI" };
+export const metadata: Metadata = { title: "Create your account", description: "Create a free Campus AI account and start studying with your own notes.", alternates: { canonical: "/signup" } };
 
 export default function Page() {
   return (

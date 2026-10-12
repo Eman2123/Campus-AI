@@ -2,6 +2,7 @@ import { ArrowUp } from "lucide-react";
 import Link from "next/link";
 
 import { Logo } from "@/components/ui/Logo";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 const EXPLORE = [
   { href: "#how-it-works", label: "How it works" },
@@ -104,7 +105,20 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col gap-4 border-t-2 border-brand-white/20 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-sans text-sm text-brand-white/80">&copy; {new Date().getFullYear()} Campus AI</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-sans text-sm text-brand-white/80">
+            <p>&copy; {new Date().getFullYear()} Campus AI</p>
+            <Link href="/privacy" className={linkClass}>
+              Privacy
+            </Link>
+            <Link href="/terms" className={linkClass}>
+              Terms
+            </Link>
+            {CONTACT_EMAIL && (
+              <a href={`mailto:${CONTACT_EMAIL}`} className={linkClass}>
+                {CONTACT_EMAIL}
+              </a>
+            )}
+          </div>
           <a
             href="#"
             className="pixel-focus inline-flex items-center gap-2 self-start font-pixel text-sm font-semibold text-brand-yellow hover:underline hover:decoration-[3px] hover:underline-offset-4 focus-visible:outline-brand-yellow sm:self-auto"
