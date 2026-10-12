@@ -78,7 +78,10 @@ async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)):
         name=payload.name,
         password_hash=hash_password(payload.password),
     )
-    apply_admin_bootstrap(user)  # Day 34 — promotes if payload.email is in ADMIN_EMAILS
+    # No admin promotion here: a password signup never proves the address is
+    # the person's own, so anyone could register a listed ADMIN_EMAILS
+    # address first. Admins are promoted only on the Google path, where
+    # Google has verified the email.
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -108,12 +111,6 @@ async def signin(payload: UserLogin, db: AsyncSession = Depends(get_db)):
     # is disabled, which is useful for the person to know.
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been disabled")
-
-    # Day 34 — re-checked on every sign in, not just signup, so adding an
-    # email to ADMIN_EMAILS after the account already exists still takes
-    # effect without a manual DB update.
-    if apply_admin_bootstrap(user):
-        await db.commit()
 
     return _issue_token(user, remember_me=payload.remember_me)
 
@@ -266,6 +263,8 @@ async def google_sign_in(payload: GoogleAuthRequest, db: AsyncSession = Depends(
     elif not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been disabled")
 
+    # Google verified this email (email_verified is checked in
+    # verify_google_id_token), so this is the one place ADMIN_EMAILS applies.
     apply_admin_bootstrap(user)
     await db.commit()
     await db.refresh(user)

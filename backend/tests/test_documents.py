@@ -1,8 +1,6 @@
 """Day 16 — Document upload endpoint + storage."""
-import os
 import uuid
 
-import pytest
 
 
 def test_upload_document_success(client, auth_headers):

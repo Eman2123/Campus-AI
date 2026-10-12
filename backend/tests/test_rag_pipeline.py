@@ -1,12 +1,10 @@
 """Day 17 — Chunking + embeddings pipeline (pgvector)."""
 import uuid
 
-from sqlalchemy import select
 
 from app.core.chunking import chunk_text
 from app.core.embeddings import get_embedding
 from app.core.text_extraction import extract_text
-from app.models.document_chunk import DocumentChunk
 
 
 def test_chunk_text_splits_with_overlap():

@@ -1,22 +1,16 @@
 """Day 35 — user management table (list, search, disable).
 
-Builds an admin via the Day 34 ADMIN_EMAILS bootstrap (same pattern as
-test_admin.py), then exercises list/search/disable/enable through the
+Builds an admin via ADMIN_EMAILS plus a (mocked) Google sign-in, the only
+path that promotes (see tests/helpers.make_admin_headers), then exercises list/search/disable/enable through the
 real endpoints.
 """
 import uuid
-from unittest.mock import patch
 
-from app.core.config import settings
+from tests.helpers import make_admin_headers
 
 
 def _make_admin(client) -> dict:
-    email = f"admin-{uuid.uuid4()}@campus.ai"
-    with patch.object(settings, "ADMIN_EMAILS", [email]):
-        resp = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
-    assert resp.status_code == 201
-    token = resp.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return make_admin_headers(client, f"admin-{uuid.uuid4()}@campus.ai")
 
 
 def _make_student(client, email: str | None = None) -> tuple[dict, str]:

@@ -138,7 +138,7 @@ docker run --env-file .env -p 8000:8000 campus-ai-backend
 
 - [ ] `GET /api/health` and `/api/health/ready` look healthy
 - [ ] Sign up, then sign in on the deployed frontend
-- [ ] Your email in `ADMIN_EMAILS` can open `/admin`
+- [ ] Your email in `ADMIN_EMAILS` can open `/admin` (sign in with Google; password sign-in does not grant admin)
 - [ ] Upload a document and ask a question about it
 - [ ] Chat history is still there after a backend restart
 - [ ] Password-reset email arrives (needs `RESEND_API_KEY`)
