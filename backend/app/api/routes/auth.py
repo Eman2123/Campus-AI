@@ -11,6 +11,7 @@ from app.core.admin_bootstrap import apply_admin_bootstrap
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.email import send_email
+from app.core.email_template import render_email
 from app.core.google_auth import GoogleAuthError, verify_google_id_token
 from app.core.checkpointer import delete_thread_checkpoints
 from app.core.google_drive import delete_file_from_drive
@@ -160,19 +161,31 @@ async def forgot_password(
 
     link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
     greeting = f"Hi {user.name}," if user.name else "Hi,"
-    background_tasks.add_task(
-        _send_reset_email, user.email, f"{greeting}\n\nUse this link to choose a new Campus AI password:\n{link}\n\n"
+    expiry_note = (
         f"It works once and expires in {settings.PASSWORD_RESET_EXPIRE_MINUTES} minutes. "
-        "If you didn't ask for this, you can ignore this email — your password hasn't changed.\n",
+        "If you didn't ask for this, you can ignore this email — your password hasn't changed."
+    )
+    html = render_email(
+        "Reset your password",
+        [greeting, "Use the button below to choose a new Campus AI password."],
+        button=("Choose a new password", link),
+        closing=expiry_note,
+        preheader="Choose a new Campus AI password",
+    )
+    background_tasks.add_task(
+        _send_reset_email,
+        user.email,
+        f"{greeting}\n\nUse this link to choose a new Campus AI password:\n{link}\n\n{expiry_note}\n",
+        html,
     )
     return generic
 
 
-def _send_reset_email(to: str, body: str) -> None:
+def _send_reset_email(to: str, body: str, html: str | None = None) -> None:
     # Runs after the response is sent, so a failure here can't be reported
     # to the caller — log it instead of letting it vanish.
     try:
-        send_email(to, "Reset your Campus AI password", body)
+        send_email(to, "Reset your Campus AI password", body, html=html)
     except Exception:  # noqa: BLE001 — any provider/network failure
         logger.exception("Could not send password-reset email to %s", to)
 

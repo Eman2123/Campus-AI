@@ -42,8 +42,8 @@ def outbox(monkeypatch):
     """Captures what the app would have emailed instead of sending it."""
     sent: list[dict] = []
 
-    def fake_send_email(to: str, subject: str, body: str) -> None:
-        sent.append({"to": to, "subject": subject, "body": body})
+    def fake_send_email(to: str, subject: str, body: str, html: str | None = None) -> None:
+        sent.append({"to": to, "subject": subject, "body": body, "html": html})
 
     monkeypatch.setattr("app.api.routes.auth.send_email", fake_send_email)
     return sent

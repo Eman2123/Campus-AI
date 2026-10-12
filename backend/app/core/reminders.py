@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.dates import format_long_date
 from app.core.email import send_email
+from app.core.email_template import render_email
 from app.models.schedule import Schedule
 from app.models.user import User
 from app.schemas.preferences import Preferences
@@ -21,6 +22,19 @@ def format_reminder_email(title: str, due_date: datetime) -> tuple[str, str]:
         f"{format_long_date(due_date)}.\n\n\u2014 Campus AI"
     )
     return subject, body
+
+
+def format_reminder_html(title: str, due_date: datetime) -> str:
+    return render_email(
+        "Deadline coming up",
+        [f"Just a heads up — \"{title}\" is due {format_long_date(due_date)}."],
+        button=(
+            "Open your schedule",
+            f"{settings.FRONTEND_URL.rstrip('/')}/dashboard",
+        ),
+        closing="You're getting this because deadline reminders are on in your Campus AI settings.",
+        preheader=f"{title} is due {format_long_date(due_date)}",
+    )
 
 
 async def send_deadline_reminders(user_id: str | None = None) -> int:
@@ -69,7 +83,12 @@ async def send_deadline_reminders(user_id: str | None = None) -> int:
                 continue
             subject, body = format_reminder_email(schedule.title, schedule.due_date)
             try:
-                send_email(to=user.email, subject=subject, body=body)
+                send_email(
+                    to=user.email,
+                    subject=subject,
+                    body=body,
+                    html=format_reminder_html(schedule.title, schedule.due_date),
+                )
             except Exception as exc:
                 logger.exception("failed to send reminder for schedule=%s: %s", schedule.id, exc)
                 continue

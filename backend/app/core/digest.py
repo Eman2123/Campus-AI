@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.dates import format_short_date
 from app.core.email import send_email
+from app.core.email_template import render_email
 from app.models.schedule import Schedule
 from app.models.user import User
 from app.schemas.preferences import Preferences
@@ -24,6 +25,25 @@ def format_digest_email(items: list[Schedule]) -> tuple[str, str]:
     lines.append("")
     lines.append("\u2014 Campus AI")
     return subject, "\n".join(lines)
+
+
+def format_digest_html(items: list[Schedule]) -> str:
+    rows = [
+        (
+            format_short_date(item.due_date),
+            item.title,
+            "Deadline" if item.source == "deadline" else "Study session",
+        )
+        for item in items
+    ]
+    return render_email(
+        "Your Campus AI digest",
+        [f"Here's what's coming up — {len(items)} item(s) on your plate."],
+        items=rows,
+        button=("Open your schedule", f"{settings.FRONTEND_URL.rstrip('/')}/dashboard"),
+        closing="You can change how often you get this digest in your Campus AI settings.",
+        preheader=f"{len(items)} item(s) coming up",
+    )
 
 
 async def send_daily_digests(user_id: str | None = None) -> int:
@@ -81,7 +101,7 @@ async def send_daily_digests(user_id: str | None = None) -> int:
         user = users_by_id[key]
         subject, body = format_digest_email(items)
         try:
-            send_email(to=user.email, subject=subject, body=body)
+            send_email(to=user.email, subject=subject, body=body, html=format_digest_html(items))
             sent += 1
         except Exception as exc:
             logger.exception("failed to send digest for user=%s: %s", key, exc)
