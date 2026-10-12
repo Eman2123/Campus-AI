@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { getThemePref, setThemePref, type ThemePref } from "@/lib/theme";
 
 import { useDashboard } from "./DashboardContext";
+import { openTour } from "./OnboardingTour";
 
 function Switch({ on, onChange, label }: { on: boolean; onChange: () => void; label: string }) {
   return (
@@ -164,6 +165,10 @@ export function SettingsView() {
           <Row title="Typewriter replies" desc="Show answers as they arrive instead of all at once."><Switch on={prefs.typewriter} onChange={() => void setPref({ typewriter: !prefs.typewriter })} label="Typewriter replies" /></Row>
           <Row title="Voice input" desc="Show the microphone button in the chat box."><Switch on={prefs.voice_input} onChange={() => void setPref({ voice_input: !prefs.voice_input })} label="Voice input" /></Row>
           <Row title="Clear chat history" desc="Deletes every past conversation."><PixelButton size="sm" variant="secondary" onClick={clearChats}>Clear history</PixelButton></Row>
+        </Section>
+
+        <Section title="Help">
+          <Row title="Product tour" desc="A quick walkthrough of every part of Campus AI."><PixelButton size="sm" variant="secondary" onClick={openTour}>Show the tour</PixelButton></Row>
         </Section>
 
         <Section title="Account">
