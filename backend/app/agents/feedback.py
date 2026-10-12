@@ -46,6 +46,7 @@ def feedback_node(state: AgentState) -> dict:
                 "messages": [{"role": "assistant", "content": reply}],
                 "agent_used": "feedback",
                 "needs_retry": needs_retry,
+                "feedback_text": reply,
             }
         except Exception as exc:
             reply = f"[AIML API error, falling back to stub: {exc}]"

@@ -17,3 +17,5 @@ class AgentState(TypedDict):
     user_id: str | None
     agent_used: str | None      # which specialist node actually produced the reply (for logging)
     needs_retry: bool | None    # set by Feedback node — True routes back to Homework
+    student_text: str | None    # the student's own message this turn, set by the Supervisor
+    feedback_text: str | None   # the Feedback agent's visible grade, kept so a retry reply can include it
