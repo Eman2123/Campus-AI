@@ -111,7 +111,7 @@ class Settings(BaseSettings):
     # Text-to-speech for spoken replies (optional). Voice id defaults to ElevenLabs' "Rachel".
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
-    ELEVENLABS_MODEL_ID: str = "eleven_multilingual_v2"
+    ELEVENLABS_MODEL_ID: str = "eleven_flash_v2_5"  # ~3x faster than multilingual_v2
 
     # Observability (Day 15) — optional. LangSmith auto-instruments
     # LangGraph/LangChain calls via these env vars; leave LANGCHAIN_API_KEY
