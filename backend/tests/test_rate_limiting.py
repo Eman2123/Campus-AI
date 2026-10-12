@@ -4,6 +4,8 @@ Secrets-audit (backend/.gitignore) has no code behavior to test, so it's
 documented in README.md instead; nothing to assert here.
 """
 import uuid
+
+import pytest
 from unittest.mock import patch
 
 from app.core.config import settings
@@ -58,7 +60,22 @@ def test_signin_is_rate_limited_independently_of_signup(client):
 # ---------------------------------------------------------------------------
 
 
-def test_chat_rate_limit_is_per_user_not_per_ip(client):
+@pytest.fixture
+def frozen_limiter_clock(monkeypatch):
+    """The limiter counts hits inside a 60-second window. These tests make
+    21+ real requests in a row; against a remote database each one takes a
+    few seconds, so the window can expire mid-test and the 429 never comes
+    (that is what happened on a slow Neon link). Freezing the limiter's own
+    clock makes the tests independent of network speed. Only the limiter's
+    reference to `time` is replaced, nothing else in the process."""
+    from types import SimpleNamespace
+
+    from app.core import rate_limit
+
+    monkeypatch.setattr(rate_limit, "time", SimpleNamespace(monotonic=lambda: 1000.0))
+
+
+def test_chat_rate_limit_is_per_user_not_per_ip(client, frozen_limiter_clock):
     """Two different logged-in users, same TestClient "IP" — both should
     get their own full budget, because /chat's limiter keys on the
     authenticated user's id, not on request.client.host."""
@@ -81,7 +98,7 @@ def test_chat_rate_limit_is_per_user_not_per_ip(client):
     assert still_fine.status_code == 200
 
 
-def test_chat_and_chat_stream_have_independent_buckets(client, auth_headers):
+def test_chat_and_chat_stream_have_independent_buckets(client, auth_headers, frozen_limiter_clock):
     for _ in range(20):
         resp = client.post("/api/chat", json={"message": "hi"}, headers=auth_headers)
         assert resp.status_code == 200
