@@ -14,6 +14,8 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    # Always stored lowercase (see schemas.auth.normalize_email); a unique
+    # index on lower(email) (migration e2f6a4c9d1b3) enforces it in the database.
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     # Display name from the sign-up form (or the Google profile). Optional:
     # accounts created before this column existed simply have none.
