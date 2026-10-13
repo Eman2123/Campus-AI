@@ -94,6 +94,17 @@ export async function downloadIcs(token: string): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+/** Downloads everything we hold about the signed-in user as a JSON file. */
+export async function downloadMyData(token: string): Promise<void> {
+  const res = await send("/api/auth/me/export", {}, token);
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "campus-ai-data.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function sendVoice(token: string, audio: Blob, sessionId: string): Promise<VoiceReply> {
   const form = new FormData();
   form.append("audio", audio, "voice.webm");

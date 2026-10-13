@@ -11,8 +11,11 @@ export const SITE_DESCRIPTION =
 /** Public origin of the frontend, e.g. https://campus-ai.vercel.app (no trailing slash). */
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/+$/, "");
 
+/** Who runs the service, named in the privacy policy as the party responsible for your data. */
+export const OPERATOR_NAME = process.env.NEXT_PUBLIC_OPERATOR_NAME?.trim() || "the Campus AI team";
+
 /** Real contact address shown in the footer and legal pages. Empty means "not shown". */
 export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "";
 
 /** Pages that should appear in the sitemap (public, indexable). */
-export const PUBLIC_PATHS = ["/", "/signup", "/signin", "/docs", "/privacy", "/terms"] as const;
+export const PUBLIC_PATHS = ["/", "/signup", "/signin", "/docs", "/privacy", "/terms", "/licenses"] as const;
