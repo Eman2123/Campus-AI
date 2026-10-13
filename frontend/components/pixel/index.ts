@@ -8,3 +8,4 @@ export { PixelCheckbox } from "./PixelCheckbox";
 export { PixelSection } from "./PixelSection";
 export type { SectionBg } from "./PixelSection";
 export { PixelSectionHeading } from "./PixelSectionHeading";
+export { PixelIcon, type PixelIconName } from "./PixelIcon";

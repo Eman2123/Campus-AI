@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
-import { PixelBadge, PixelButton, PixelCard } from "@/components/pixel";
+import { PixelBadge, PixelButton, PixelCard, PixelIcon } from "@/components/pixel";
 import { friendlyError } from "@/lib/api";
 import { getSessionMessages, sendVoice, speakText, streamChat, transcribeVoice, uploadDocument } from "@/lib/dashboard-api";
 import { STARTERS, SUGGESTIONS, dayLabel, docBadge, startOfDay, toEvents } from "@/lib/dashboard-data";
@@ -32,14 +32,6 @@ function plainForSpeech(md: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 1500);
-}
-
-function Icon({ d }: { d: string }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-      <path d={d} />
-    </svg>
-  );
 }
 
 function PanelContent({ onPickFile }: { onPickFile: () => void }) {
@@ -140,8 +132,8 @@ function MobilePanel({ open, onClose, onPickFile }: { open: boolean; onClose: ()
       <button type="button" aria-label="Close panel" onClick={onClose} className="flex-1 bg-brand-black/50" />
       <div className="flex max-h-[80dvh] flex-col gap-3 overflow-y-auto border-t-pixel border-brand-black bg-brand-yellow-soft p-4">
         <div className="flex justify-end">
-          <button type="button" onClick={onClose} aria-label="Close panel" className="pixel-focus border-pixel border-brand-black bg-brand-white px-2.5 py-1 font-pixel text-sm font-bold">
-            ✕
+          <button type="button" onClick={onClose} aria-label="Close panel" className="pixel-focus border-pixel border-brand-black bg-brand-white p-2 transition-colors hover:bg-accent-coral">
+            <PixelIcon name="close" />
           </button>
         </div>
         <PanelContent onPickFile={onPickFile} />
@@ -369,7 +361,7 @@ export function ChatView() {
         >
           <span className="shrink-0 font-pixel text-sm">Start with</span>
           {Object.keys(STARTERS).map((a) => (
-            <button key={a} type="button" onClick={() => starter(a)} className="pixel-focus shrink-0 whitespace-nowrap border-2 border-brand-black bg-brand-white px-3 py-1 font-pixel text-xs font-semibold hover:bg-accent-mint">
+            <button key={a} type="button" onClick={() => starter(a)} className="pixel-focus shrink-0 whitespace-nowrap border-2 border-brand-black bg-brand-white px-3 py-1 font-pixel text-xs font-semibold transition-transform hover:-translate-y-0.5 hover:bg-accent-mint active:translate-y-0">
               {a}
             </button>
           ))}
@@ -379,24 +371,38 @@ export function ChatView() {
           <div className="flex flex-1 flex-col gap-4 px-4 pb-2 pt-4 sm:px-5 sm:pt-5">
             {loadingMsgs && <p className="text-sm text-muted-onPaper">Loading chat…</p>}
             {!loadingMsgs && msgs.length === 0 && (
-              <PixelCard tone="soft" className="max-w-xl text-sm">
+              <PixelCard tone="soft" className="max-w-xl animate-pixel-pop text-sm">
                 <p className="font-pixel text-lg font-bold">Ask about your coursework</p>
                 <p className="mt-1">Upload a PDF, then ask for a quiz, flashcards, a summary or a study plan. Pick a starter above or just type.</p>
               </PixelCard>
             )}
             {msgs.map((m, i) =>
               m.role === "user" ? (
-                <div key={m.key} className="max-w-[80%] self-end whitespace-pre-wrap bg-brand-black px-3.5 py-2 text-sm text-brand-white">{m.content}</div>
+                <div key={m.key} className="max-w-[80%] animate-pixel-rise self-end whitespace-pre-wrap bg-brand-black px-3.5 py-2 text-sm text-brand-white">{m.content}</div>
               ) : (
-                <div key={m.key} className="max-w-xl">
+                <div key={m.key} className="max-w-xl animate-pixel-rise">
                   <div className="mb-1.5 flex items-center gap-2 text-xs">
-                    <span className="grid h-7 w-7 place-items-center border-2 border-brand-black bg-brand-yellow font-pixel">:)</span>
+                    <span
+                      className={cn(
+                        "grid h-7 w-7 place-items-center border-2 border-brand-black bg-brand-yellow",
+                        (!m.content || speakingKey === m.key) && "animate-pixel-hop",
+                      )}
+                    >
+                      <PixelIcon name="bot" />
+                    </span>
                     <b className="font-pixel">Campus AI</b>
                     {m.agent && <PixelBadge tone="mint">{m.agent}</PixelBadge>}
                   </div>
                   <PixelCard className={cn("px-4 py-3 text-sm", m.error && "bg-accent-coral")}>
                     {!m.content ? (
-                      <span className="text-muted-onPaper">Thinking…</span>
+                      <span role="status" className="inline-flex items-center gap-2 text-muted-onPaper">
+                        Thinking
+                        <span aria-hidden="true" className="flex items-end gap-1">
+                          {[0, 1, 2].map((n) => (
+                            <span key={n} className="h-1.5 w-1.5 animate-pixel-bounce bg-brand-black" style={{ animationDelay: `${n * 0.15}s` }} />
+                          ))}
+                        </span>
+                      </span>
                     ) : m.error ? (
                       <span className="whitespace-pre-wrap">{m.content}</span>
                     ) : (
@@ -404,24 +410,41 @@ export function ChatView() {
                     )}
                   </PixelCard>
                   {m.content && !m.error && (
-                    <div className="mt-1.5 flex gap-1.5">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => void copyMessage(m.key, m.content)}
                         aria-label="Copy reply"
                         title="Copy"
-                        className="pixel-focus border-2 border-transparent px-1.5 py-0.5 text-xs hover:border-brand-black hover:bg-brand-white"
+                        className={cn(
+                          "pixel-focus inline-flex items-center gap-1.5 border-2 border-brand-black px-2.5 py-1 text-xs font-semibold transition-colors active:translate-y-px",
+                          copiedKey === m.key ? "bg-accent-mint" : "bg-brand-white hover:bg-brand-yellow-soft",
+                        )}
                       >
-                        {copiedKey === m.key ? "Copied ✓" : "Copy"}
+                        {copiedKey === m.key ? <PixelIcon name="check" size={14} className="animate-pixel-pop" /> : <PixelIcon name="copy" size={14} />}
+                        {copiedKey === m.key ? "Copied" : "Copy"}
                       </button>
                       <button
                         type="button"
                         onClick={() => void speak(m.key, m.content)}
                         aria-label={speakingKey === m.key ? "Stop reading" : "Read aloud"}
+                        aria-pressed={speakingKey === m.key}
                         title={speakingKey === m.key ? "Stop" : "Read aloud"}
-                        className="pixel-focus border-2 border-transparent px-1.5 py-0.5 text-xs hover:border-brand-black hover:bg-brand-white"
+                        className={cn(
+                          "pixel-focus inline-flex items-center gap-1.5 border-2 border-brand-black px-2.5 py-1 text-xs font-semibold transition-colors active:translate-y-px",
+                          speakingKey === m.key ? "bg-accent-mint" : "bg-brand-white hover:bg-brand-yellow-soft",
+                        )}
                       >
-                        {speakingKey === m.key ? "■ Stop" : "🔊 Read aloud"}
+                        {speakingKey === m.key ? (
+                          <span aria-hidden="true" className="flex h-3.5 items-end gap-0.5">
+                            {[0, 1, 2, 3].map((n) => (
+                              <span key={n} className="h-full w-[3px] origin-bottom animate-pixel-eq bg-brand-black" style={{ animationDelay: `${n * 0.12}s` }} />
+                            ))}
+                          </span>
+                        ) : (
+                          <PixelIcon name="speaker" size={14} />
+                        )}
+                        {speakingKey === m.key ? "Stop" : "Read aloud"}
                       </button>
                     </div>
                   )}
@@ -453,7 +476,7 @@ export function ChatView() {
             >
               <input ref={fileRef} type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={onFile} />
               <PixelButton size="sm" variant="secondary" aria-label="Attach file" onClick={() => fileRef.current?.click()}>
-                <Icon d="M21 12.5l-8.5 8.5a5.5 5.5 0 01-8-8l9-9a3.5 3.5 0 015 5l-9 9a1.5 1.5 0 01-2-2l8-8" />
+                <PixelIcon name="attach" />
               </PixelButton>
               <input
                 ref={inputRef}
@@ -466,29 +489,41 @@ export function ChatView() {
               <div className="ml-auto flex items-center gap-2 sm:ml-0">
                 {(prefs.voice_input || recording) && (
                   <>
-                    <PixelButton
-                      size="sm"
-                      variant={recording && modeRef.current === "dictate" ? "primary" : "secondary"}
-                      aria-label={recording && modeRef.current === "dictate" ? "Stop dictating" : "Dictate: speak and get text"}
-                      title="Dictate: your voice becomes text"
-                      disabled={(busy && !recording) || (recording && modeRef.current !== "dictate")}
-                      onClick={() => void toggleVoice("dictate")}
-                    >
-                      <Icon d="M9 3h6v12H9zM5 11a7 7 0 0014 0M12 18v3" />
-                    </PixelButton>
-                    <PixelButton
-                      size="sm"
-                      variant={recording && modeRef.current === "talk" ? "primary" : "secondary"}
-                      aria-label={recording && modeRef.current === "talk" ? "Stop and send" : "Talk: voice conversation"}
-                      title="Talk: the agent answers out loud"
-                      disabled={(busy && !recording) || (recording && modeRef.current !== "talk")}
-                      onClick={() => void toggleVoice("talk")}
-                    >
-                      <Icon d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" />
-                    </PixelButton>
+                    <span className="relative inline-flex">
+                      {recording && modeRef.current === "dictate" && (
+                        <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-pixel-ring border-2 border-accent-coral" />
+                      )}
+                      <PixelButton
+                        size="sm"
+                        variant={recording && modeRef.current === "dictate" ? "primary" : "secondary"}
+                        aria-label={recording && modeRef.current === "dictate" ? "Stop dictating" : "Dictate: speak and get text"}
+                        title="Dictate: your voice becomes text"
+                        disabled={(busy && !recording) || (recording && modeRef.current !== "dictate")}
+                        onClick={() => void toggleVoice("dictate")}
+                      >
+                        <PixelIcon name="mic" />
+                      </PixelButton>
+                    </span>
+                    <span className="relative inline-flex">
+                      {recording && modeRef.current === "talk" && (
+                        <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-pixel-ring border-2 border-accent-coral" />
+                      )}
+                      <PixelButton
+                        size="sm"
+                        variant={recording && modeRef.current === "talk" ? "primary" : "secondary"}
+                        aria-label={recording && modeRef.current === "talk" ? "Stop and send" : "Talk: voice conversation"}
+                        title="Talk: the agent answers out loud"
+                        disabled={(busy && !recording) || (recording && modeRef.current !== "talk")}
+                        onClick={() => void toggleVoice("talk")}
+                      >
+                        <PixelIcon name="speaker" />
+                      </PixelButton>
+                    </span>
                   </>
                 )}
-                <PixelButton size="sm" type="submit" aria-label="Send" disabled={busy || !text.trim()}>→</PixelButton>
+                <PixelButton size="sm" type="submit" aria-label="Send" className="group" disabled={busy || !text.trim()}>
+                  <PixelIcon name="send" className="transition-transform group-hover:translate-x-0.5" />
+                </PixelButton>
               </div>
             </form>
             <p className="mt-2 text-center text-[11px] text-muted-onPaper">

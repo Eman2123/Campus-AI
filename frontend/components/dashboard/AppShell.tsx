@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { PixelBadge, PixelButton } from "@/components/pixel";
+import { PixelBadge, PixelButton, PixelIcon } from "@/components/pixel";
 import { docBadge } from "@/lib/dashboard-data";
 import { cn } from "@/lib/cn";
 import { useDarkMode } from "@/lib/theme";
@@ -62,9 +62,9 @@ function SidebarLists({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={() => {
                   if (window.confirm("Delete this chat? This cannot be undone.")) void removeSession(c.id);
                 }}
-                className="pixel-focus shrink-0 border-2 border-transparent px-1.5 text-xs font-bold hover:border-brand-black hover:bg-accent-coral"
+                className="pixel-focus shrink-0 border-2 border-transparent p-1 transition-colors hover:border-brand-black hover:bg-accent-coral"
               >
-                ✕
+                <PixelIcon name="close" size={14} />
               </button>
             </li>
           ))}
@@ -124,9 +124,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             onClick={() => setDrawerOpen(true)}
             aria-label="Open chats and documents"
             aria-expanded={drawerOpen}
-            className="pixel-focus shrink-0 border-pixel border-brand-black bg-brand-black px-3 py-1.5 font-pixel text-sm font-semibold text-brand-white"
+            className="pixel-focus inline-flex shrink-0 items-center gap-2 border-pixel border-brand-black bg-brand-black px-3 py-1.5 font-pixel text-sm font-semibold text-brand-white"
           >
-            ☰ Chats
+            <PixelIcon name="menu" />
+            Chats
           </button>
         )}
         {NAV.map((n) => (
@@ -156,8 +157,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex w-[85%] max-w-xs flex-col gap-3 overflow-y-auto border-r-pixel border-brand-black bg-brand-yellow-soft p-4">
             <div className="flex items-center justify-between">
               <span className="font-pixel text-lg font-bold">Campus AI</span>
-              <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Close menu" className="pixel-focus border-pixel border-brand-black bg-brand-white px-2.5 py-1 font-pixel text-sm font-bold">
-                ✕
+              <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Close menu" className="pixel-focus border-pixel border-brand-black bg-brand-white p-2 transition-colors hover:bg-accent-coral">
+                <PixelIcon name="close" />
               </button>
             </div>
             <SidebarLists onNavigate={() => setDrawerOpen(false)} />

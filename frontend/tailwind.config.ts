@@ -73,12 +73,39 @@ const config: Config = {
           from: { clipPath: "inset(0 100% 0 0)" },
           to: { clipPath: "inset(0 0 0 0)" },
         },
+        // Chat polish: new messages rise in, "thinking" dots hop, the speaking
+        // equalizer bounces, the recording ring pulses, the bot avatar hops.
+        "pixel-rise": {
+          from: { transform: "translateY(10px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "pixel-bounce": {
+          "0%, 60%, 100%": { transform: "translateY(0)" },
+          "30%": { transform: "translateY(-5px)" },
+        },
+        "pixel-eq": {
+          "0%, 100%": { transform: "scaleY(0.3)" },
+          "50%": { transform: "scaleY(1)" },
+        },
+        "pixel-ring": {
+          from: { transform: "scale(1)", opacity: "1" },
+          to: { transform: "scale(1.35)", opacity: "0" },
+        },
+        "pixel-hop": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-3px)" },
+        },
       },
       animation: {
         "pixel-float": "pixel-float 2.4s steps(6, end) infinite",
         "pixel-blink": "pixel-blink 1s steps(1, end) infinite",
         "pixel-pop": "pixel-pop 0.4s steps(4, end) both",
         "pixel-type": "pixel-type 1.6s steps(24, end) both",
+        "pixel-rise": "pixel-rise 0.35s steps(5, end) both",
+        "pixel-bounce": "pixel-bounce 1s steps(4, end) infinite",
+        "pixel-eq": "pixel-eq 0.8s steps(4, end) infinite",
+        "pixel-ring": "pixel-ring 1.1s steps(5, end) infinite",
+        "pixel-hop": "pixel-hop 0.6s steps(3, end) infinite",
       },
       fontFamily: {
         display: ["var(--font-caslon)", "Georgia", "serif"],
