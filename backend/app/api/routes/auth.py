@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.email import send_email
 from app.core.email_template import render_email
 from app.core.google_auth import GoogleAuthError, verify_google_id_token
+from app.core.chat_history import thread_ids_for_session
 from app.core.checkpointer import delete_thread_checkpoints
 from app.core.google_drive import delete_file_from_drive
 from app.core.rate_limit import RateLimitByIP
@@ -343,5 +344,5 @@ async def delete_me(
     await db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
     await db.execute(delete(User).where(User.id == user_id))
     await db.commit()
-    await delete_thread_checkpoints(thread_ids)
+    await delete_thread_checkpoints([t for sid in thread_ids for t in thread_ids_for_session(user_id, sid)])
     logger.info("account deleted: user=%s", user_id)

@@ -159,3 +159,7 @@ docker run --env-file .env -p 8000:8000 campus-ai-backend
 | `column ... does not exist` | A migration is missing; run `alembic upgrade head` |
 | Database connection fails | Check the `postgresql+asyncpg://` prefix and `?ssl=require` for Neon |
 | Reset emails don't arrive | `RESEND_API_KEY` is empty or the sender domain isn't verified |
+
+## Upgrade note: chat thread ids
+
+The agent's checkpointed memory is now keyed by `<user_id>:<session id>` instead of the bare session id, so users can no longer share a thread. Conversations that were checkpointed under the old id keep their saved history (messages table) but the agent starts fresh the next time they are continued; deleting a chat clears both the old and the new checkpoints.

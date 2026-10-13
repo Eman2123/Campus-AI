@@ -1,8 +1,10 @@
 import uuid
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import AsyncSessionLocal
 from app.models.message import Message
 from app.models.session import Session
 
@@ -35,12 +37,51 @@ def resolve_session_uuid(user_id: uuid.UUID, raw_session_id: str) -> uuid.UUID:
         return uuid.uuid5(SESSION_ID_NAMESPACE, f"{user_id}:{raw_session_id}")
 
 
+def thread_id_for(user_id: uuid.UUID | str, raw_session_id: str) -> str:
+    """The LangGraph thread_id for a chat: "<user_id>:<session uuid>".
+
+    It used to be the raw client-supplied session id, so two users sending the
+    same id (or the shared "dev-session" default) read and wrote one
+    checkpointed conversation. Including the user id makes a thread belong to
+    exactly one person. The session part is the canonical UUID (the same one
+    the `sessions` table uses) so deleting a chat can rebuild the id from the
+    database row.
+    """
+    uid = user_id if isinstance(user_id, uuid.UUID) else uuid.UUID(str(user_id))
+    return f"{uid}:{resolve_session_uuid(uid, raw_session_id)}"
+
+
+def thread_ids_for_session(user_id: uuid.UUID | str, session_uuid: uuid.UUID | str) -> list[str]:
+    """Every checkpoint thread a stored session may have: the current
+    "<user>:<session>" id, plus the bare session UUID that older versions used
+    (so deleting a chat also clears checkpoints written before this change)."""
+    return [f"{user_id}:{session_uuid}", str(session_uuid)]
+
+
+def _not_found() -> HTTPException:
+    # 404, not 403: don't confirm that somebody else's session id exists.
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+
+async def ensure_session_available(user_id: uuid.UUID, raw_session_id: str) -> None:
+    """Raises 404 if this session id already belongs to another user. Chat
+    routes call it BEFORE running the graph, so a foreign id is refused
+    outright instead of the reply being generated and then silently not saved."""
+    session_uuid = resolve_session_uuid(user_id, raw_session_id)
+    async with AsyncSessionLocal() as db:
+        owner = (await db.execute(select(Session.user_id).where(Session.id == session_uuid))).scalar_one_or_none()
+    if owner is not None and owner != user_id:
+        raise _not_found()
+
+
 async def get_or_create_session(db: AsyncSession, user_id: uuid.UUID, raw_session_id: str) -> Session:
     session_uuid = resolve_session_uuid(user_id, raw_session_id)
 
     result = await db.execute(select(Session).where(Session.id == session_uuid))
     session = result.scalar_one_or_none()
     if session is not None:
+        if session.user_id != user_id:
+            raise _not_found()
         return session
 
     session = Session(id=session_uuid, user_id=user_id)
