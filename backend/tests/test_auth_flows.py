@@ -345,3 +345,45 @@ def test_verifier_rejects_tokens_that_are_not_ours_or_not_verified(monkeypatch, 
 def test_verifier_rejects_a_token_google_itself_refuses(monkeypatch):
     with pytest.raises(GoogleAuthError):
         _verify_with(monkeypatch, 400, {"error": "invalid_token"})
+
+
+# ---------------------------------------------------------------------------
+# Fix 7 — a password reset revokes tokens issued before it
+# ---------------------------------------------------------------------------
+
+
+def test_password_reset_revokes_existing_tokens(client, outbox):
+    email, old_token = _signup(client)
+    old_headers = {"Authorization": f"Bearer {old_token}"}
+    assert client.get("/api/auth/me", headers=old_headers).status_code == 200
+
+    client.post("/api/auth/forgot-password", json={"email": email})
+    reset = client.post("/api/auth/reset-password", json={"token": _token_from(outbox[0]["body"]), "password": NEW_PASSWORD})
+    assert reset.status_code == 200
+
+    # The token someone may have stolen before the reset is dead...
+    assert client.get("/api/auth/me", headers=old_headers).status_code == 401
+    # ...while signing in again with the new password works and yields a live token.
+    signin = client.post("/api/auth/signin", json={"email": email, "password": NEW_PASSWORD})
+    assert signin.status_code == 200
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {signin.json()['access_token']}"}).status_code == 200
+
+
+def test_tokens_carry_the_version_and_a_missing_claim_counts_as_zero(client):
+    from app.core.security import create_access_token
+
+    _, token = _signup(client)
+    assert decode_access_token(token)["tv"] == 0
+
+    user_id = decode_access_token(token)["sub"]
+    legacy = create_access_token(subject=user_id)  # issued before the claim existed
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {legacy}"}).status_code == 200
+
+
+def test_a_token_from_the_wrong_version_is_rejected(client):
+    from app.core.security import create_access_token
+
+    _, token = _signup(client)
+    user_id = decode_access_token(token)["sub"]
+    stale = create_access_token(subject=user_id, extra_claims={"tv": 5})
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {stale}"}).status_code == 401

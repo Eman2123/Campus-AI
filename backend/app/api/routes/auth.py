@@ -54,7 +54,7 @@ def _issue_token(user: User, remember_me: bool = False) -> Token:
     carries the same claims. `remember_me` only stretches the lifetime."""
     expires_delta = timedelta(days=settings.REMEMBER_ME_EXPIRE_DAYS) if remember_me else None
     token = create_access_token(
-        subject=str(user.id), extra_claims={"role": user.role}, expires_delta=expires_delta
+        subject=str(user.id), extra_claims={"role": user.role, "tv": user.token_version or 0}, expires_delta=expires_delta
     )
     return Token(access_token=token)
 
@@ -220,6 +220,7 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
         raise invalid
 
     user.password_hash = hash_password(payload.password)
+    user.token_version = (user.token_version or 0) + 1  # signs out every session issued before the reset
     # Retire this link and any other still-open ones for the account.
     await db.execute(
         update(PasswordResetToken)
