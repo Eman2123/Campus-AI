@@ -29,6 +29,13 @@ def normalize_database_url(url: str) -> str:
     return urlunparse(parsed._replace(query=urlencode(query)))
 
 
+def _split_list(value: str) -> list[str]:
+    """'a,b' or '["a","b"]' -> ['a', 'b'] (tolerates quotes/spaces/trailing slash)."""
+    value = value.strip().strip("[]")
+    items = [v.strip().strip("\"'").strip() for v in value.split(",")]
+    return [v.rstrip("/") for v in items if v]
+
+
 class Settings(BaseSettings):
     # App
     ENV: str = "development"
@@ -36,13 +43,16 @@ class Settings(BaseSettings):
     # on for hosts that have no separate release/migration step (e.g. FastAPI
     # Cloud); the Dockerfile already migrates before starting.
     RUN_MIGRATIONS_ON_STARTUP: bool = False
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    # Plain str (not list) so hosts like FastAPI Cloud don't choke on JSON
+    # parsing. Comma-separated or a JSON array both work; use
+    # `cors_origins_list` in code.
+    CORS_ORIGINS: str = "http://localhost:3000"
 
     # Admin role-gating (Day 34) — the only way a user becomes an admin.
     # Checked at signup and signin (see app/core/admin_bootstrap.py); no
-    # self-service "become admin" path exists anywhere. Same JSON-array
-    # env format as CORS_ORIGINS, e.g. ADMIN_EMAILS=["you@school.edu"].
-    ADMIN_EMAILS: list[str] = []
+    # self-service "become admin" path exists anywhere. Plain str, e.g.
+    # ADMIN_EMAILS=you@school.edu,admin@school.edu — use `admin_emails_list`.
+    ADMIN_EMAILS: str = ""
 
     # Database (Neon Postgres)
     DATABASE_URL: str
@@ -67,7 +77,8 @@ class Settings(BaseSettings):
 
     # Document Agent retrieval (Day 18) — how many nearest chunks (by cosine
     # distance) to pull into the grounded-QA context per question.
-    DOCUMENT_RETRIEVAL_TOP_K: int = 5    # Day 21 retrieval-quality tuning — chunks farther than this (pgvector
+    DOCUMENT_RETRIEVAL_TOP_K: int = 5
+    # Day 21 retrieval-quality tuning — chunks farther than this (pgvector
     # cosine distance; 0 = identical, 1 = orthogonal, 2 = opposite) get
     # dropped instead of always filling out top_k regardless of quality.
     # Only enforced when AIML_API_KEY is set: the no-key fallback embedding
@@ -170,6 +181,14 @@ class Settings(BaseSettings):
                     "(use at least 32 random characters, e.g. `openssl rand -hex 32`)."
                 )
         return self
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return _split_list(self.CORS_ORIGINS)
+
+    @property
+    def admin_emails_list(self) -> list[str]:
+        return _split_list(self.ADMIN_EMAILS)
 
 
 settings = Settings()
