@@ -107,7 +107,6 @@ def test_chat_stream_requires_auth(client):
         "/api/chat/stream",
         json={"message": "hello", "session_id": f"day30-{uuid.uuid4()}"},
     )
-    # HTTPBearer(auto_error=True) (the default, used by get_current_user)
-    # returns 403 for a completely missing Authorization header — 401 is
-    # only for a header that's present but invalid/expired.
-    assert resp.status_code == 403
+    # A completely missing Authorization header is 401 Unauthorized (newer
+    # FastAPI; older releases answered 403).
+    assert resp.status_code == 401
