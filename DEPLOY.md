@@ -73,7 +73,7 @@ The repository includes `backend/Dockerfile`, which applies migrations and then 
    | `JWT_SECRET_KEY` | a long random string (e.g. `openssl rand -hex 32`) |
    | `CORS_ORIGINS` | `["https://your-frontend.vercel.app"]` |
    | `FRONTEND_URL` | `https://your-frontend.vercel.app` |
-   | `ADMIN_EMAILS` | `["you@example.com"]` |
+   | `ADMIN_EMAILS` | `["you@example.com"]` (admins must **sign in with Google**; needs `GOOGLE_CLIENT_ID`) |
    | `AIML_API_KEY` | your LLM key |
    | `RESEND_API_KEY` · `EMAIL_FROM` | optional, for real emails |
    | `ASSEMBLYAI_API_KEY` | optional, for voice |
@@ -132,7 +132,7 @@ docker run --env-file .env -p 8000:8000 campus-ai-backend
 
 - [ ] `GET /api/health` and `/api/health/ready` look healthy
 - [ ] Sign up, then sign in on the deployed frontend
-- [ ] Your email in `ADMIN_EMAILS` can open `/admin`
+- [ ] Your email in `ADMIN_EMAILS`, signed in **with Google**, can open `/admin` (password sign-in never grants admin)
 - [ ] Upload a document and ask a question about it
 - [ ] Chat history is still there after a backend restart
 - [ ] Password-reset email arrives (needs `RESEND_API_KEY`)

@@ -17,6 +17,7 @@ from app.core import google_auth
 from app.core.config import settings
 from app.core.google_auth import GoogleAuthError, GoogleProfile
 from app.core.security import decode_access_token
+from tests.helpers import make_admin_headers
 
 # Generated per run so no password literal lives in the repo (secret scanners
 # flag hardcoded ones, even in tests).
@@ -203,10 +204,7 @@ def test_forgot_password_is_rate_limited(client, outbox):
 
 
 def test_disabled_account_gets_no_reset_email_and_cannot_use_an_old_link(client, outbox):
-    admin_email = _email()
-    with patch.object(settings, "ADMIN_EMAILS", [admin_email]):
-        _, admin_token = _signup(client, admin_email)
-    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    admin_headers = make_admin_headers(client)
 
     student_email, student_token = _signup(client)
     student_id = client.get("/api/auth/me", headers={"Authorization": f"Bearer {student_token}"}).json()["id"]
@@ -279,12 +277,10 @@ def test_google_sign_in_rejects_a_bad_credential(client):
 
 
 def test_google_sign_in_respects_disabled_accounts(client):
-    admin_email = _email()
-    with patch.object(settings, "ADMIN_EMAILS", [admin_email]):
-        _, admin_token = _signup(client, admin_email)
+    admin_headers = make_admin_headers(client)
     student_email, student_token = _signup(client)
     student_id = client.get("/api/auth/me", headers={"Authorization": f"Bearer {student_token}"}).json()["id"]
-    client.post(f"/api/admin/users/{student_id}/disable", headers={"Authorization": f"Bearer {admin_token}"})
+    client.post(f"/api/admin/users/{student_id}/disable", headers=admin_headers)
 
     with patch.object(settings, "GOOGLE_CLIENT_ID", "client-id"), _fake_google(
         GoogleProfile(email=student_email, name=None)

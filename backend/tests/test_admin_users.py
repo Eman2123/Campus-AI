@@ -5,18 +5,12 @@ test_admin.py), then exercises list/search/disable/enable through the
 real endpoints.
 """
 import uuid
-from unittest.mock import patch
 
-from app.core.config import settings
+from tests.helpers import make_admin_headers
 
 
 def _make_admin(client) -> dict:
-    email = f"admin-{uuid.uuid4()}@campus.ai"
-    with patch.object(settings, "ADMIN_EMAILS", [email]):
-        resp = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
-    assert resp.status_code == 201
-    token = resp.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return make_admin_headers(client, "admin")
 
 
 def _make_student(client, email: str | None = None) -> tuple[dict, str]:

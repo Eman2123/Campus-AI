@@ -9,10 +9,13 @@ def apply_admin_bootstrap(user: User) -> bool:
     config-driven, so gaining admin access means someone with deploy
     access decided it, not a request the user made.
 
-    Checked at both signup and signin (see app/api/routes/auth.py), not
-    just signup, so adding an email to ADMIN_EMAILS after someone
-    already has an account still promotes them next time they sign in —
-    no manual DB update needed to bootstrap the first admin.
+    Only called from the Google sign-in path (app/api/routes/auth.py),
+    where Google has verified the email address. It is deliberately NOT
+    called for password signup/signin: those accept any typed address
+    without proving ownership, so honouring ADMIN_EMAILS there would let
+    anyone register an admin's address first and become admin. Admins
+    therefore sign in with Google; an existing account is promoted the
+    next time its owner signs in that way.
 
     Returns True if this call actually changed the role, so callers
     know whether there's anything new to commit.

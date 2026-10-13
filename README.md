@@ -280,7 +280,7 @@ Errors return `{"detail": "..."}`. LLM problems map to `504` (timeout), `503` (p
 
 ## Admin Access
 
-Admin accounts are never created through normal signup. Add your email to `ADMIN_EMAILS` in `backend/.env`, restart the backend, then sign in. The role is applied at sign-in, so existing accounts are promoted too. Then open `/admin`.
+Admin accounts are never created through normal signup. Add your email to `ADMIN_EMAILS` in `backend/.env`, restart the backend, then **sign in with Google** (Google sign-in must be configured, see `GOOGLE_CLIENT_ID`). Admin is granted only on the Google path, because Google has verified that you own the address; a password signup or sign-in can't prove that, so it never promotes. Existing accounts are promoted the next time their owner signs in with Google. Then open `/admin`.
 
 ## Testing
 

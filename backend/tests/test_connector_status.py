@@ -1,18 +1,14 @@
 """Day 37 — connector status monitoring (calendar export/email/storage
 health, plus the scheduled jobs).
 """
-import uuid
 from unittest.mock import patch
 
 from app.core.config import settings
+from tests.helpers import make_admin_headers
 
 
 def _make_admin(client) -> dict:
-    email = f"connector-admin-{uuid.uuid4()}@campus.ai"
-    with patch.object(settings, "ADMIN_EMAILS", [email]):
-        resp = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
-    assert resp.status_code == 201, resp.text
-    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+    return make_admin_headers(client, "connector-admin")
 
 
 def test_connector_status_rejects_non_admin(client, auth_headers):

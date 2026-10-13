@@ -2,13 +2,19 @@
 
 ADMIN_EMAILS is empty by default in test environments, so each test that
 needs an admin patches it to a specific email before signing that user
-up (or back in), exercising the real bootstrap path rather than poking
-the role directly in the DB.
+in, exercising the real bootstrap path rather than poking the role
+directly in the DB.
+
+Admin promotion happens ONLY on the Google sign-in path (Google verifies
+the email). Password signup/signin never promote: nothing there proves
+the person owns the address, so honouring ADMIN_EMAILS would let anyone
+register an admin's email first and take over.
 """
 import uuid
 from unittest.mock import patch
 
 from app.core.config import settings
+from app.core.google_auth import GoogleProfile
 
 
 def test_admin_ping_rejects_non_admin(client, auth_headers):
@@ -24,50 +30,75 @@ def test_admin_ping_requires_auth(client):
     assert resp.status_code == 401
 
 
-def test_signup_bootstraps_admin_when_email_is_listed(client):
+def _google(profile: GoogleProfile):
+    async def fake_verify(credential: str) -> GoogleProfile:
+        return profile
+
+    return patch("app.api.routes.auth.verify_google_id_token", fake_verify)
+
+
+def _google_signin(client, email: str):
+    with patch.object(settings, "GOOGLE_CLIENT_ID", "client-id"), _google(GoogleProfile(email=email, name="Admin")):
+        resp = client.post("/api/auth/google", json={"credential": "a" * 40})
+    assert resp.status_code == 200
+    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
+def test_password_signup_never_promotes_a_listed_admin_email(client):
+    """The takeover: registering an ADMIN_EMAILS address by password must not
+    grant admin, because the address is unverified."""
     email = f"admin-{uuid.uuid4()}@campus.ai"
     with patch.object(settings, "ADMIN_EMAILS", [email]):
-        signup_resp = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
-        assert signup_resp.status_code == 201
-        token = signup_resp.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        resp = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
+        assert resp.status_code == 201
+        headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
-        me = client.get("/api/auth/me", headers=headers).json()
-        assert me["role"] == "admin"
+        assert client.get("/api/auth/me", headers=headers).json()["role"] != "admin"
+        assert client.get("/api/admin/ping", headers=headers).status_code == 403
 
+
+def test_password_signin_never_promotes_a_listed_admin_email(client):
+    email = f"squatter-{uuid.uuid4()}@campus.ai"
+    signup = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
+    assert signup.status_code == 201
+
+    with patch.object(settings, "ADMIN_EMAILS", [email]):
+        resp = client.post("/api/auth/signin", json={"email": email, "password": "testpass123"})
+        assert resp.status_code == 200
+        headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+        assert client.get("/api/admin/ping", headers=headers).status_code == 403
+
+
+def test_google_signin_bootstraps_admin_when_email_is_listed(client):
+    email = f"admin-{uuid.uuid4()}@campus.ai"
+    with patch.object(settings, "ADMIN_EMAILS", [email]):
+        headers = _google_signin(client, email)
+
+        assert client.get("/api/auth/me", headers=headers).json()["role"] == "admin"
         ping = client.get("/api/admin/ping", headers=headers)
         assert ping.status_code == 200
         assert ping.json() == {"status": "ok", "role": "admin"}
 
 
-def test_admin_bootstrap_applies_retroactively_on_signin(client):
-    """An email added to ADMIN_EMAILS after the account already exists
-    should promote that user the next time they sign in — no manual DB
-    update needed."""
+def test_google_signin_promotes_an_existing_account_retroactively(client):
+    """An email added to ADMIN_EMAILS after the account exists is promoted the
+    next time its owner signs in with Google."""
     email = f"retro-admin-{uuid.uuid4()}@campus.ai"
-
-    # Signs up before their email is on the admin list — stays "student".
-    signup_resp = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
-    assert signup_resp.status_code == 201
-    first_headers = {"Authorization": f"Bearer {signup_resp.json()['access_token']}"}
+    signup = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
+    assert signup.status_code == 201
+    first_headers = {"Authorization": f"Bearer {signup.json()['access_token']}"}
     assert client.get("/api/admin/ping", headers=first_headers).status_code == 403
 
     with patch.object(settings, "ADMIN_EMAILS", [email]):
-        signin_resp = client.post("/api/auth/signin", json={"email": email, "password": "testpass123"})
-        assert signin_resp.status_code == 200
-        new_headers = {"Authorization": f"Bearer {signin_resp.json()['access_token']}"}
-
+        new_headers = _google_signin(client, email)
         assert client.get("/api/admin/ping", headers=new_headers).status_code == 200
-        # the promotion is a real DB change, not tied to the token used —
-        # the *original* token should now see it too, since get_current_user
-        # re-reads the role from the DB rather than trusting the JWT.
+        # get_current_user re-reads the role from the DB, so the original
+        # token sees the promotion too.
         assert client.get("/api/admin/ping", headers=first_headers).status_code == 200
 
 
 def test_admin_bootstrap_is_case_insensitive_on_email(client):
     email = f"CaseTest-{uuid.uuid4()}@campus.ai"
     with patch.object(settings, "ADMIN_EMAILS", [email.lower()]):
-        signup_resp = client.post("/api/auth/signup", json={"email": email, "password": "testpass123"})
-        assert signup_resp.status_code == 201
-        headers = {"Authorization": f"Bearer {signup_resp.json()['access_token']}"}
+        headers = _google_signin(client, email)
         assert client.get("/api/admin/ping", headers=headers).status_code == 200
