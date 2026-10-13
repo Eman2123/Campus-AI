@@ -18,10 +18,10 @@ def test_admin_ping_rejects_non_admin(client, auth_headers):
 
 def test_admin_ping_requires_auth(client):
     resp = client.get("/api/admin/ping")
-    # HTTPBearer(auto_error=True) (the default, used by get_current_user)
-    # returns 403 for a completely missing Authorization header — same
-    # finding as Day 30's streaming-endpoint auth test.
-    assert resp.status_code == 403
+    # A completely missing Authorization header is 401 Unauthorized (newer
+    # FastAPI; older releases answered 403). 403 is reserved for "signed in
+    # but not an admin" — see the other tests in this file.
+    assert resp.status_code == 401
 
 
 def test_signup_bootstraps_admin_when_email_is_listed(client):
