@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import model_validator
@@ -173,8 +174,14 @@ class Settings(BaseSettings):
         # Hosts sometimes hand env values over with stray whitespace/newlines
         # or wrapping quotes; an invalid header value makes the OpenAI SDK
         # fail with a bare "Connection error." — so clean them here.
-        self.AIML_API_KEY = self.AIML_API_KEY.strip().strip("\"'").strip()
-        self.AIML_API_BASE_URL = self.AIML_API_BASE_URL.strip().strip("\"'").strip().rstrip("/")
+        # Strip *every* non-printable / whitespace char (BOM, zero-width, NBSP,
+        # CR/LF...) — invisible junk in a URL/key gives httpx
+        # "UnsupportedProtocol: Request URL is missing an http:// ..." errors.
+        self.AIML_API_KEY = re.sub(r"[^\x21-\x7e]", "", self.AIML_API_KEY).strip("\"'")
+        url = re.sub(r"[^\x21-\x7e]", "", self.AIML_API_BASE_URL).strip("\"'").rstrip("/")
+        if url and not url.lower().startswith(("http://", "https://")):
+            url = "https://" + url.lstrip(":/")
+        self.AIML_API_BASE_URL = url or "https://api.aimlapi.com/v1"
         # Fail fast in production rather than run with forgeable tokens.
         if self.ENV.lower() in {"production", "prod"}:
             if self.JWT_SECRET_KEY.strip().lower() in _WEAK_JWT_SECRETS or len(self.JWT_SECRET_KEY) < 32:
