@@ -35,7 +35,7 @@ def normalize_database_url(url: str) -> str:
 def _split_list(value: str) -> list[str]:
     """'a,b' or '["a","b"]' -> ['a', 'b'] (tolerates quotes/spaces/trailing slash)."""
     value = value.strip().strip("[]")
-    items = [v.strip().strip("\"'").strip() for v in value.split(",")]
+    items = [v.strip().strip("\"'<>").strip() for v in value.split(",")]
     return [v.rstrip("/") for v in items if v]
 
 
@@ -177,11 +177,12 @@ class Settings(BaseSettings):
         # Strip *every* non-printable / whitespace char (BOM, zero-width, NBSP,
         # CR/LF...) — invisible junk in a URL/key gives httpx
         # "UnsupportedProtocol: Request URL is missing an http:// ..." errors.
-        self.AIML_API_KEY = re.sub(r"[^\x21-\x7e]", "", self.AIML_API_KEY).strip("\"'")
-        url = re.sub(r"[^\x21-\x7e]", "", self.AIML_API_BASE_URL).strip("\"'").rstrip("/")
-        if url and not url.lower().startswith(("http://", "https://")):
-            url = "https://" + url.lstrip(":/")
-        self.AIML_API_BASE_URL = url or "https://api.aimlapi.com/v1"
+        # Also drop <angle brackets> / quotes: pasting from chat or docs often
+        # wraps values like <https://api.aimlapi.com/v1>, which httpx then
+        # treats as host "<https".
+        self.AIML_API_KEY = re.sub(r"[^\x21-\x7e]|[<>\"'`]", "", self.AIML_API_KEY)
+        match = re.search(r"https?://[^\s<>\"'`]+", self.AIML_API_BASE_URL)
+        self.AIML_API_BASE_URL = match.group(0).rstrip("/") if match else "https://api.aimlapi.com/v1"
         # Fail fast in production rather than run with forgeable tokens.
         if self.ENV.lower() in {"production", "prod"}:
             if self.JWT_SECRET_KEY.strip().lower() in _WEAK_JWT_SECRETS or len(self.JWT_SECRET_KEY) < 32:
