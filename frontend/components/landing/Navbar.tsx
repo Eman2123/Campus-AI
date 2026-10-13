@@ -11,6 +11,7 @@ const LINKS = [
   { href: "#agents", label: "Agents" },
   { href: "#planner", label: "Planner" },
   { href: "#faq", label: "FAQ" },
+  { href: "/docs", label: "Guide" },
 ];
 
 /**
