@@ -332,3 +332,7 @@ Released under the MIT License. See [LICENSE](LICENSE).
 **Campus AI · multi-agent study assistant**
 
 </div>
+
+## Legal and compliance
+
+Privacy policy, terms, licences page, data export/deletion, and the internal runbooks are described in [`docs/legal/LAUNCH_LEGAL_CHECKLIST.md`](docs/legal/LAUNCH_LEGAL_CHECKLIST.md). Regenerate the open-source licence list with `python scripts/generate_licenses.py`.

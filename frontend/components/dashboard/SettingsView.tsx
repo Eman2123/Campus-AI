@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { PixelButton, PixelCard } from "@/components/pixel";
 import { friendlyError } from "@/lib/api";
-import { deleteAccount, deleteDocument, digestMe, downloadIcs, remindMe } from "@/lib/dashboard-api";
+import { deleteAccount, deleteDocument, digestMe, downloadIcs, downloadMyData, remindMe } from "@/lib/dashboard-api";
 import { getRememberDefault, setRememberDefault } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { getThemePref, setThemePref, type ThemePref } from "@/lib/theme";
@@ -169,6 +169,19 @@ export function SettingsView() {
 
         <Section title="Help">
           <Row title="Product tour" desc="A quick walkthrough of every part of Campus AI."><PixelButton size="sm" variant="secondary" onClick={openTour}>Show the tour</PixelButton></Row>
+        </Section>
+
+        <Section title="Privacy and data">
+          <Row title="Download my data" desc="A JSON copy of your account, conversations, document list and schedule.">
+            <PixelButton size="sm" variant="secondary" onClick={() => void run(async () => { await downloadMyData(token); return "Downloaded campus-ai-data.json"; })}>Download</PixelButton>
+          </Row>
+          <Row title="Policies" desc="How we handle your data, the rules for using Campus AI, and the open-source software behind it.">
+            <span className="flex flex-wrap gap-3 text-sm">
+              <a href="/privacy" target="_blank" rel="noreferrer" className="underline">Privacy</a>
+              <a href="/terms" target="_blank" rel="noreferrer" className="underline">Terms</a>
+              <a href="/licenses" target="_blank" rel="noreferrer" className="underline">Licences</a>
+            </span>
+          </Row>
         </Section>
 
         <Section title="Account">

@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 
+import Link from "next/link";
+
 import { LegalPage } from "@/components/site/LegalPage";
+import { CONTACT_EMAIL, OPERATOR_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Privacy policy",
-  description: "What Campus AI collects, why, who helps us run it, and how you can delete your data.",
+  description: "What Campus AI collects, why, who helps us run it, how long we keep it, how it is protected, and your rights.",
   alternates: { canonical: "/privacy" },
 };
 
@@ -13,10 +16,23 @@ export const metadata: Metadata = {
 // before launch, and update it whenever a provider or feature changes.
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" updated="2026-10-12">
+    <LegalPage title="Privacy policy" updated="2026-10-13">
       <p>
         Campus AI is a study assistant. This page explains what we collect when you use it, what we do with it, and the
         control you have. We keep it short on purpose.
+      </p>
+
+      <h2>Who is responsible for your data</h2>
+      <p>
+        {OPERATOR_NAME} runs Campus AI and decides how your data is used (in data-protection terms, the &ldquo;controller&rdquo;).
+        {CONTACT_EMAIL ? (
+          <>
+            {" "}
+            You can reach us at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> about anything on this page.
+          </>
+        ) : (
+          " You can reach us through the contact details on this site about anything on this page."
+        )}
       </p>
 
       <h2>What we collect</h2>
@@ -57,8 +73,9 @@ export default function PrivacyPage() {
         <li>An AI model provider (AIML API) receives your question and the relevant excerpts of your notes to write answers and compute embeddings.</li>
         <li>AssemblyAI transcribes voice recordings.</li>
         <li>ElevenLabs turns a reply into speech when you use Read aloud or Talk (it receives the text of that reply).</li>
+        <li>LangSmith (by LangChain), only while we have debugging traces switched on, receives the text of AI requests and replies so we can find and fix problems.</li>
         <li>Resend delivers emails such as password resets and reminders.</li>
-        <li>Google, only if you choose Google sign-in or turn on Drive filing.</li>
+        <li>Google, if you choose Google sign-in or leave Drive filing on (you can turn it off in Settings).</li>
         <li>Our hosting and database providers store the app and your data.</li>
       </ul>
 
@@ -69,21 +86,88 @@ export default function PrivacyPage() {
         cookies.
       </p>
 
-      <h2>Keeping and deleting your data</h2>
+      <h2>Why we may use your data (legal basis)</h2>
+      <p>If the EU or UK GDPR applies to you, we need a legal reason for each use of your data. These are ours:</p>
+      <ul>
+        <li><strong>To provide Campus AI to you</strong> (your account, notes, conversations, schedule, answers, reminders and digests you have switched on): it is needed to deliver the service you signed up for.</li>
+        <li><strong>Voice input and Read aloud:</strong> your consent, which you give by pressing the microphone or the speaker button. You can stop at any time by not using them.</li>
+        <li><strong>Keeping the service secure and working</strong> (rate limits, abuse prevention, error logs, anonymous usage statistics): our legitimate interest in running a safe, reliable service.</li>
+        <li><strong>Legal duties:</strong> when the law requires us to keep or hand over information.</li>
+      </ul>
+
+      <h2>Emails we send</h2>
       <p>
-        Your data stays until you delete it. In Settings you can delete individual documents, all conversations, or your whole
-        account; deleting your account removes your profile, documents, conversations and schedule. Reset links expire after
-        30 minutes and can be used once.
+        We send only service emails: password resets, and the deadline reminders and daily digest that you can switch on or off in
+        Settings. We send no marketing or promotional email. If that ever changes, we will ask for your separate consent first
+        and every such message will have a way to unsubscribe.
       </p>
 
-      <h2>Your choices</h2>
+      <h2>Sharing your data</h2>
       <p>
-        You can ask to see, correct or remove your data at any time, and you can do most of it yourself in Settings. Where the
-        law in your country gives you more rights, they apply too.
+        We do not sell your data and we do not share it for advertising. We pass it to the services listed above only so that
+        they can do the job we asked of them, and we ask them to treat it as confidential and use it for nothing else. We may
+        also disclose information when the law requires it, or to protect the safety of our users and our service. If we ever
+        need to change this, we will tell you before it takes effect.
+      </p>
+
+      <h2>Where your data is processed</h2>
+      <p>
+        Some of our providers run servers in other countries. Where your data leaves your own country, we rely on the safeguards
+        the law requires, such as standard contractual clauses with the provider. Ask us if you would like details.
+      </p>
+
+      <h2>How we protect your data</h2>
+      <ul>
+        <li>Passwords are stored only as a one-way (bcrypt) hash, so not even we can read them.</li>
+        <li>Connections to the hosted service are encrypted (HTTPS).</li>
+        <li>Everything you add is tied to your account and only reachable when you are signed in as you.</li>
+        <li>Sign-in, sign-up, password-reset and upload requests are rate limited, and password-reset links expire after 30 minutes and work once.</li>
+        <li>Sign-in sessions end after the time you chose, and you can sign out any time.</li>
+        <li>Access to the admin pages is limited to named administrators.</li>
+      </ul>
+      <p>No system is perfectly secure, so please use a strong, unique password.</p>
+
+      <h2>If something goes wrong (data breaches)</h2>
+      <p>
+        If a security incident puts your personal data at risk, we will contain it, find out what happened, and tell the
+        authorities and the people affected without undue delay and, where GDPR applies, within the legal deadlines (72 hours for
+        the supervisory authority). The message will say what happened, what data was involved, and what you can do about it.
+      </p>
+
+      <h2>How long we keep your data</h2>
+      <ul>
+        <li><strong>Account, documents, conversations and schedule:</strong> until you delete them, or your account.</li>
+        <li><strong>Password-reset links:</strong> 30 minutes, and once used they cannot be used again.</li>
+        <li><strong>Server logs:</strong> a short period set by our hosting provider.</li>
+        <li><strong>Anonymous service statistics</strong> (which study agent ran, how long it took, whether it succeeded; no message text and no account): while we monitor the quality of the service.</li>
+        <li><strong>Backups:</strong> deleted data can remain in provider backups for a limited time before they are overwritten.</li>
+      </ul>
+
+      <h2>Deleting your data</h2>
+      <p>
+        In Settings you can delete individual documents, clear all your conversations, or delete your whole account. Deleting
+        your account removes your profile, documents, conversations and schedule (and the copies we made in Google Drive, if you
+        used Drive filing). You can also email us and we will do it for you.
+      </p>
+
+      <h2>Your rights</h2>
+      <p>You can ask us at any time to:</p>
+      <ul>
+        <li><strong>Give you a copy of your data.</strong> Settings &rarr; Privacy and data &rarr; Download my data gives you a JSON file straight away.</li>
+        <li><strong>Correct it.</strong> You can change your name in Settings; email us for anything else.</li>
+        <li><strong>Delete it.</strong> See above.</li>
+        <li><strong>Limit or object to</strong> how we use it, or move it to another service (the download is in a common, machine-readable format).</li>
+      </ul>
+      <p>
+        If you think we have mishandled your data, you can complain to the data-protection authority in your country. We would
+        appreciate the chance to put it right first. Where the law in your country gives you more rights, they apply too.
       </p>
 
       <h2>Children</h2>
       <p>Campus AI is meant for students old enough to hold their own account. If you believe a young child has signed up, tell us and we will remove the account.</p>
+
+      <h2>Software we use</h2>
+      <p>Campus AI is built with open-source software. The list and licences are on the <Link href="/licenses">Licences page</Link>.</p>
 
       <h2>Changes</h2>
       <p>If we change this page in a way that matters, we will update the date above and, for big changes, tell you in the app.</p>
