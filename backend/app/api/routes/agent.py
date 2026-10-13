@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from app.agents.graph import campus_ai_graph
 from app.api.deps import get_current_user
 from app.core.agent_usage import UNROUTED_AGENT_NAME, log_agent_call
-from app.core.chat_history import get_or_create_session, save_turn
+from app.core.chat_history import ensure_session_available, get_or_create_session, save_turn, thread_id_for
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.rate_limit import RateLimitByUser
@@ -49,7 +49,8 @@ async def _run_graph(message: str, session_id: str, user_id: str) -> dict:
     logging needs to sit, rather than duplicating a timer into all
     three routes (or three agents/* nodes) individually.
     """
-    config = {"configurable": {"thread_id": session_id}}
+    # Per-user thread: never share checkpointed state between accounts.
+    config = {"configurable": {"thread_id": thread_id_for(user_id, session_id)}}
     start = time.perf_counter()
 
     try:
@@ -102,6 +103,7 @@ async def _persist_turn(user_id: uuid.UUID, raw_session_id: str, user_message: s
     dependencies=[Depends(RateLimitByUser(times=20, seconds=60))],
 )
 async def chat(payload: ChatRequest, current_user: User = Depends(get_current_user)):
+    await ensure_session_available(current_user.id, payload.session_id)
     result = await _run_graph(payload.message, payload.session_id, str(current_user.id))
     reply = result["messages"][-1].content
     agent_used = result["agent_used"]
@@ -184,6 +186,7 @@ async def chat_stream(payload: ChatRequest, current_user: User = Depends(get_cur
     a manual ReadableStream reader on the client, not new EventSource()
     — see frontend/lib/chat.ts's streamMessage for that half.
     """
+    await ensure_session_available(current_user.id, payload.session_id)  # 404 before streaming starts
     return StreamingResponse(
         _stream_graph_reply(payload.message, payload.session_id, current_user.id),
         media_type="text/event-stream",
