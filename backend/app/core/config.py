@@ -150,7 +150,7 @@ class Settings(BaseSettings):
     # LLM / Voice providers (wired in later phases)
     AIML_API_KEY: str = ""
     AIML_API_BASE_URL: str = "https://api.aimlapi.com/v1"
-    AIML_MODEL: str = "gpt-4o-mini"
+    AIML_MODEL: str = "openai/gpt-4o-mini"
     LLM_TIMEOUT_SECONDS: float = 45.0
     LLM_MAX_RETRIES: int = 2
     ASSEMBLYAI_API_KEY: str = ""
@@ -181,6 +181,7 @@ class Settings(BaseSettings):
         # wraps values like <https://api.aimlapi.com/v1>, which httpx then
         # treats as host "<https".
         self.AIML_API_KEY = re.sub(r"[^\x21-\x7e]|[<>\"'`]", "", self.AIML_API_KEY)
+        self.AIML_MODEL = re.sub(r"[^\x21-\x7e]|[<>\"'`]", "", self.AIML_MODEL) or "openai/gpt-4o-mini"
         match = re.search(r"https?://[^\s<>\"'`]+", self.AIML_API_BASE_URL)
         self.AIML_API_BASE_URL = match.group(0).rstrip("/") if match else "https://api.aimlapi.com/v1"
         # Fail fast in production rather than run with forgeable tokens.
