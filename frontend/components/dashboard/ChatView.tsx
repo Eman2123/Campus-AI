@@ -337,36 +337,46 @@ export function ChatView() {
   const nextDeadline = toEvents(schedule).find((e) => e.kind === "deadline" && e.at >= startOfDay(now));
   const days = nextDeadline ? Math.round((startOfDay(nextDeadline.at).getTime() - startOfDay(now).getTime()) / DAY_MS) : null;
   const lastIdx = msgs.length - 1;
+  const deadlineBadge =
+    nextDeadline && days !== null ? (
+      <PixelBadge tone="coral" className="max-w-full">
+        {nextDeadline.title}: {days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`}
+      </PixelBadge>
+    ) : null;
 
   return (
     <>
       <section className="bg-graph flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b-pixel border-brand-black bg-brand-white px-5 py-3">
-          <div className="min-w-0">
-            <h1 className="truncate font-pixel text-xl font-bold">{title}</h1>
-            <p className="text-xs text-muted-onPaper">{lastAgent ? `Answered by the ${lastAgent} agent` : "The right agent is picked from your message"}</p>
+        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-pixel border-brand-black bg-brand-white px-4 py-2.5 sm:px-5 sm:py-3">
+          <div className="min-w-0 flex-1 basis-40">
+            <h1 className="truncate font-pixel text-lg font-bold sm:text-xl">{title}</h1>
+            <p className="truncate text-xs text-muted-onPaper">{lastAgent ? `Answered by the ${lastAgent} agent` : "The right agent is picked from your message"}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {nextDeadline && days !== null && (
-              <PixelBadge tone="coral">{nextDeadline.title}: {days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`}</PixelBadge>
-            )}
+            {deadlineBadge && <span className="hidden min-w-0 sm:inline-flex">{deadlineBadge}</span>}
             <PixelButton size="sm" variant="secondary" className="lg:hidden" onClick={() => setPanelOpen(true)}>
               Docs / Plan
             </PixelButton>
           </div>
+          {deadlineBadge && <div className="basis-full sm:hidden">{deadlineBadge}</div>}
         </header>
 
-        <div className="flex flex-wrap items-center gap-2 border-b-pixel border-brand-black bg-brand-yellow-soft px-5 py-3">
-          <span className="font-pixel text-sm">Start with</span>
+        <div
+          className={cn(
+            "flex items-center gap-2 overflow-x-auto border-b-pixel border-brand-black bg-brand-yellow-soft px-4 py-2 sm:flex-wrap sm:px-5 sm:py-3",
+            msgs.length > 0 && "max-sm:hidden",
+          )}
+        >
+          <span className="shrink-0 font-pixel text-sm">Start with</span>
           {Object.keys(STARTERS).map((a) => (
-            <button key={a} type="button" onClick={() => starter(a)} className="pixel-focus border-2 border-brand-black bg-brand-white px-3 py-1 font-pixel text-xs font-semibold hover:bg-accent-mint">
+            <button key={a} type="button" onClick={() => starter(a)} className="pixel-focus shrink-0 whitespace-nowrap border-2 border-brand-black bg-brand-white px-3 py-1 font-pixel text-xs font-semibold hover:bg-accent-mint">
               {a}
             </button>
           ))}
         </div>
 
         <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="flex flex-1 flex-col gap-4 px-5 pb-2 pt-5">
+          <div className="flex flex-1 flex-col gap-4 px-4 pb-2 pt-4 sm:px-5 sm:pt-5">
             {loadingMsgs && <p className="text-sm text-muted-onPaper">Loading chat…</p>}
             {!loadingMsgs && msgs.length === 0 && (
               <PixelCard tone="soft" className="max-w-xl text-sm">
@@ -427,15 +437,15 @@ export function ChatView() {
             )}
           </div>
 
-          <div className="sticky bottom-0 bg-gradient-to-b from-transparent to-brand-white px-5 pb-4 pt-4">
+          <div className="sticky bottom-0 bg-gradient-to-b from-transparent to-brand-white px-4 pb-3 pt-3 sm:px-5 sm:pb-4 sm:pt-4">
             {note && <p role="status" className="mb-2 text-xs text-muted-onPaper">{note}</p>}
-            <div className="mb-2.5 flex flex-wrap gap-2">
+            <div className="mb-2.5 flex gap-2 overflow-x-auto sm:flex-wrap">
               {SUGGESTIONS.map((s) => (
-                <PixelButton key={s} size="sm" variant="secondary" disabled={busy} onClick={() => say(s)}>{s}</PixelButton>
+                <PixelButton key={s} size="sm" variant="secondary" className="shrink-0 whitespace-nowrap" disabled={busy} onClick={() => say(s)}>{s}</PixelButton>
               ))}
             </div>
             <form
-              className="flex items-center gap-2 border-pixel border-brand-black bg-brand-white p-2 shadow-pixel"
+              className="flex flex-wrap items-center gap-2 border-pixel border-brand-black bg-brand-white p-2 shadow-pixel sm:flex-nowrap"
               onSubmit={(e) => {
                 e.preventDefault();
                 void say(text);
@@ -451,33 +461,35 @@ export function ChatView() {
                 onChange={(e) => setText(e.target.value)}
                 maxLength={4000}
                 placeholder={recording ? "Recording… press the button again to stop" : "Ask anything about your notes…"}
-                className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm outline-none"
+                className="order-first min-w-0 basis-full bg-transparent px-2 py-1.5 text-base outline-none sm:order-none sm:basis-auto sm:flex-1 sm:text-sm"
               />
-              {(prefs.voice_input || recording) && (
-                <>
-                  <PixelButton
-                    size="sm"
-                    variant={recording && modeRef.current === "dictate" ? "primary" : "secondary"}
-                    aria-label={recording && modeRef.current === "dictate" ? "Stop dictating" : "Dictate: speak and get text"}
-                    title="Dictate: your voice becomes text"
-                    disabled={(busy && !recording) || (recording && modeRef.current !== "dictate")}
-                    onClick={() => void toggleVoice("dictate")}
-                  >
-                    <Icon d="M9 3h6v12H9zM5 11a7 7 0 0014 0M12 18v3" />
-                  </PixelButton>
-                  <PixelButton
-                    size="sm"
-                    variant={recording && modeRef.current === "talk" ? "primary" : "secondary"}
-                    aria-label={recording && modeRef.current === "talk" ? "Stop and send" : "Talk: voice conversation"}
-                    title="Talk: the agent answers out loud"
-                    disabled={(busy && !recording) || (recording && modeRef.current !== "talk")}
-                    onClick={() => void toggleVoice("talk")}
-                  >
-                    <Icon d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" />
-                  </PixelButton>
-                </>
-              )}
-              <PixelButton size="sm" type="submit" aria-label="Send" disabled={busy || !text.trim()}>→</PixelButton>
+              <div className="ml-auto flex items-center gap-2 sm:ml-0">
+                {(prefs.voice_input || recording) && (
+                  <>
+                    <PixelButton
+                      size="sm"
+                      variant={recording && modeRef.current === "dictate" ? "primary" : "secondary"}
+                      aria-label={recording && modeRef.current === "dictate" ? "Stop dictating" : "Dictate: speak and get text"}
+                      title="Dictate: your voice becomes text"
+                      disabled={(busy && !recording) || (recording && modeRef.current !== "dictate")}
+                      onClick={() => void toggleVoice("dictate")}
+                    >
+                      <Icon d="M9 3h6v12H9zM5 11a7 7 0 0014 0M12 18v3" />
+                    </PixelButton>
+                    <PixelButton
+                      size="sm"
+                      variant={recording && modeRef.current === "talk" ? "primary" : "secondary"}
+                      aria-label={recording && modeRef.current === "talk" ? "Stop and send" : "Talk: voice conversation"}
+                      title="Talk: the agent answers out loud"
+                      disabled={(busy && !recording) || (recording && modeRef.current !== "talk")}
+                      onClick={() => void toggleVoice("talk")}
+                    >
+                      <Icon d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" />
+                    </PixelButton>
+                  </>
+                )}
+                <PixelButton size="sm" type="submit" aria-label="Send" disabled={busy || !text.trim()}>→</PixelButton>
+              </div>
             </form>
             <p className="mt-2 text-center text-[11px] text-muted-onPaper">
               Campus AI can make mistakes. Check important info.{" "}
