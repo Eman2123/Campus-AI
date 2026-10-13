@@ -1,3 +1,5 @@
+import logging
+import os
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import model_validator
@@ -191,4 +193,27 @@ class Settings(BaseSettings):
         return _split_list(self.ADMIN_EMAILS)
 
 
+def _fix_proxy_env() -> None:
+    """Some hosts export HTTP(S)_PROXY / ALL_PROXY without a scheme
+    (e.g. 'proxy.internal:3128'). httpx (used by the OpenAI SDK) then fails
+    every request with 'UnsupportedProtocol: Request URL is missing an
+    http:// or https:// protocol'. Prefix such values with http://, and drop
+    empty ones.
+    """
+    for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
+        for key in (name, name.lower()):
+            value = os.environ.get(key)
+            if value is None:
+                continue
+            value = value.strip().strip("\"'").strip()
+            if not value:
+                os.environ.pop(key, None)
+            elif "://" not in value:
+                os.environ[key] = "http://" + value
+                logging.getLogger(__name__).warning("Fixed scheme-less proxy env var %s", key)
+            else:
+                os.environ[key] = value
+
+
+_fix_proxy_env()
 settings = Settings()
