@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, DateTime, Boolean
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,6 +30,10 @@ class User(Base):
     # ...). Stored sparse: only keys the student has changed. Defaults are
     # applied by app.schemas.preferences.Preferences, so a new setting never
     # needs a data migration.
+    # Bumped to revoke every token issued before now (password reset, Google
+    # sign-in taking over a pre-registered account). Tokens carry it as the
+    # "tv" claim and get_current_user rejects a mismatch.
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

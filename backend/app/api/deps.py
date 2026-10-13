@@ -36,6 +36,12 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
+    # A password reset (or another account takeover fix) bumps token_version,
+    # which invalidates every token issued earlier. A token with no "tv"
+    # claim predates this check and counts as version 0.
+    if payload.get("tv", 0) != (user.token_version or 0):
+        raise credentials_exception
+
     # Day 35 — a disabled user's existing token stops working immediately,
     # the same way a role change (Day 34) takes effect immediately: both
     # rely on re-reading this row from the DB on every request instead of
