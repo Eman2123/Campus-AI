@@ -2,7 +2,10 @@
 name = "campus-ai-backend"
 version = "0.1.0"
 description = "Campus AI - multi-agent study assistant API"
-requires-python = ">=3.11"
+# Pinned below 3.13 on purpose: several pinned dependencies (asyncpg 0.29,
+# pydantic-core 2.23) have no prebuilt wheels for 3.13/3.14 and fail to compile
+# on FastAPI Cloud. 3.12 is what local dev and CI use.
+requires-python = ">=3.12,<3.13"
 # Mirrors requirements.txt (kept in sync by hand) so FastAPI Cloud / uv can
 # install the app from pyproject.toml.
 dependencies = [
