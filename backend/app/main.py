@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import time
@@ -29,8 +30,28 @@ else:
     logger.info("LangSmith tracing disabled — using custom logging only")
 
 
+def run_migrations() -> None:
+    """Apply Alembic migrations (blocking). Used at startup when
+    RUN_MIGRATIONS_ON_STARTUP is set. Run in a worker thread because
+    migrations/env.py starts its own event loop."""
+    from alembic import command
+    from alembic.config import Config
+
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg = Config(os.path.join(backend_dir, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(backend_dir, "migrations"))
+    command.upgrade(cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.RUN_MIGRATIONS_ON_STARTUP:
+        logger.info("Applying database migrations (RUN_MIGRATIONS_ON_STARTUP)")
+        await asyncio.to_thread(run_migrations)
+    if settings.ENV.lower() in {"production", "prod"} and any(
+        "localhost" in o or "127.0.0.1" in o for o in settings.CORS_ORIGINS
+    ):
+        logger.warning("CORS_ORIGINS still contains localhost while ENV=production: %s", settings.CORS_ORIGINS)
     # Day 39 fix — must happen here, inside the real running event loop,
     # not at app.agents.graph's import time. See
     # app/core/checkpointer.py's docstrings for why: this is what swaps
