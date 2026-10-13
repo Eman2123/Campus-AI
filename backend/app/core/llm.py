@@ -26,3 +26,9 @@ def chat_completion(messages: list[dict], model: str | None = None, temperature:
         temperature=temperature,
     )
     return response.choices[0].message.content
+
+
+def describe_llm_error(exc: Exception) -> str:
+    """The SDK's APIConnectionError says just 'Connection error.' — dig out the real cause."""
+    cause = exc.__cause__ or exc.__context__
+    return f"{exc} ({type(cause).__name__}: {cause})" if cause else str(exc)

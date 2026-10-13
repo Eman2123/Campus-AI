@@ -157,6 +157,11 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _prepare(self):
         self.DATABASE_URL = normalize_database_url(self.DATABASE_URL)
+        # Hosts sometimes hand env values over with stray whitespace/newlines
+        # or wrapping quotes; an invalid header value makes the OpenAI SDK
+        # fail with a bare "Connection error." — so clean them here.
+        self.AIML_API_KEY = self.AIML_API_KEY.strip().strip("\"'").strip()
+        self.AIML_API_BASE_URL = self.AIML_API_BASE_URL.strip().strip("\"'").strip().rstrip("/")
         # Fail fast in production rather than run with forgeable tokens.
         if self.ENV.lower() in {"production", "prod"}:
             if self.JWT_SECRET_KEY.strip().lower() in _WEAK_JWT_SECRETS or len(self.JWT_SECRET_KEY) < 32:
