@@ -9,6 +9,7 @@ const EXPLORE = [
   { href: "#agents", label: "Agents" },
   { href: "#planner", label: "Study planner" },
   { href: "#faq", label: "FAQ" },
+  { href: "/docs", label: "Product guide" },
 ];
 
 const ACCOUNT = [

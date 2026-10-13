@@ -15,4 +15,4 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3
 export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "";
 
 /** Pages that should appear in the sitemap (public, indexable). */
-export const PUBLIC_PATHS = ["/", "/signup", "/signin", "/privacy", "/terms"] as const;
+export const PUBLIC_PATHS = ["/", "/signup", "/signin", "/docs", "/privacy", "/terms"] as const;
