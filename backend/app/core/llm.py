@@ -9,7 +9,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-LLM_BUILD = "llm-v3"
+LLM_BUILD = "llm-v4"
 
 
 def _proxy_diag() -> str:
@@ -19,6 +19,13 @@ def _proxy_diag() -> str:
         if k.upper() in {"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"}:
             parts.append(f"{k}:{'scheme' if '://' in v else 'NO-scheme'}")
     return ",".join(parts) or "none"
+
+
+def _request_url(exc: Exception) -> str:
+    try:
+        return str(exc.request.url)  # type: ignore[attr-defined]
+    except Exception:
+        return "?"
 
 
 def get_llm_client(trust_env: bool = True) -> OpenAI:
@@ -60,6 +67,7 @@ def chat_completion(messages: list[dict], model: str | None = None, temperature:
             except APIConnectionError as exc2:
                 detail = describe_llm_error(exc2)
         raise RuntimeError(
-            f"[{LLM_BUILD}] Connection error to {settings.AIML_API_BASE_URL}: {detail} | proxy env: {_proxy_diag()}"
+            f"[{LLM_BUILD}] Connection error to base_url={settings.AIML_API_BASE_URL!r} "
+            f"request_url={_request_url(exc)!r}: {detail} | proxy env: {_proxy_diag()}"
         ) from exc
     return response.choices[0].message.content
