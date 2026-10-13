@@ -1,5 +1,5 @@
+from app.agents.context import build_llm_messages
 from app.agents.state import AgentState
-from app.agents.supervisor import get_last_user_text
 from app.core.config import settings
 from app.core.llm import chat_completion
 
@@ -13,15 +13,11 @@ FLASHCARD_SYSTEM_PROMPT = (
 
 
 def flashcard_node(state: AgentState) -> dict:
-    user_text = get_last_user_text(state)
 
     if settings.AIML_API_KEY:
         try:
             reply = chat_completion(
-                messages=[
-                    {"role": "system", "content": FLASHCARD_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_text},
-                ]
+                messages=build_llm_messages(state, FLASHCARD_SYSTEM_PROMPT)
             )
             return {"messages": [{"role": "assistant", "content": reply}], "agent_used": "flashcard"}
         except Exception as exc:

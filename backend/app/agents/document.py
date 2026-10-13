@@ -3,6 +3,7 @@ import logging
 
 from sqlalchemy import select
 
+from app.agents.context import build_llm_messages
 from app.agents.state import AgentState
 from app.agents.supervisor import get_last_user_text
 from app.core.config import settings
@@ -153,10 +154,7 @@ async def document_node(state: AgentState) -> dict:
             system_prompt = DOCUMENT_SYSTEM_PROMPT.format(context=_build_context(chunks))
             reply = await asyncio.to_thread(
                 chat_completion,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_text},
-                ],
+                messages=build_llm_messages(state, system_prompt),
             )
             return {"messages": [{"role": "assistant", "content": reply}], "agent_used": "document"}
         except Exception as exc:

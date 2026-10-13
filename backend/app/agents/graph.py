@@ -2,6 +2,7 @@ import logging
 
 from langgraph.graph import END, StateGraph
 
+from app.agents.context import build_llm_messages
 from app.agents.document import document_node
 from app.agents.flashcard import flashcard_node
 from app.agents.feedback import feedback_node
@@ -11,7 +12,7 @@ from app.agents.planner import planner_node
 from app.agents.quiz import quiz_node
 from app.agents.research import research_node
 from app.agents.state import AgentState
-from app.agents.supervisor import get_last_user_text, supervisor_node
+from app.agents.supervisor import supervisor_node
 from app.core.checkpointer import build_default_checkpointer
 from app.core.config import settings
 from app.core.llm import chat_completion
@@ -60,7 +61,6 @@ def pending_response_node(state: AgentState) -> dict:
     persona for now, just to prove the LLM wiring works end-to-end.
     """
     intent = state["intent"]
-    user_text = get_last_user_text(state)
 
     if settings.AIML_API_KEY:
         try:
@@ -68,12 +68,7 @@ def pending_response_node(state: AgentState) -> dict:
                 f"You are Campus AI's {intent} assistant for students. "
                 "Give a short, helpful, direct answer."
             )
-            reply = chat_completion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_text},
-                ]
-            )
+            reply = chat_completion(messages=build_llm_messages(state, system_prompt))
             return {"messages": [{"role": "assistant", "content": reply}], "agent_used": intent}
         except Exception as exc:
             reply = f"[AIML API error, falling back to stub: {exc}]"
