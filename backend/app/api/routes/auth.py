@@ -257,7 +257,7 @@ async def google_sign_in(payload: GoogleAuthRequest, db: AsyncSession = Depends(
         # holds. (Someone can still choose a real password later through
         # "Forgot password", which proves they own the inbox.)
         user = User(
-            email=profile.email,
+            email=profile.email.strip().lower(),
             name=(profile.name or "").strip()[:100] or None,
             password_hash=hash_password(secrets.token_urlsafe(32)),
         )
