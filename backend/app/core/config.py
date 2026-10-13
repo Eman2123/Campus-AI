@@ -1,9 +1,41 @@
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_WEAK_JWT_SECRETS = {"", "changeme", "change-me", "secret", "your_long_random_secret", "your-secret-key"}
+
+
+def normalize_database_url(url: str) -> str:
+    """Accept whatever a provider hands out and return the form the app needs.
+
+    Neon/Supabase/Render give `postgres://` or `postgresql://...?sslmode=require
+    &channel_binding=require`; SQLAlchemy+asyncpg needs `postgresql+asyncpg://`
+    and `ssl=require`. Already-correct URLs pass through unchanged.
+    """
+    url = url.strip()
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            url = "postgresql+asyncpg://" + url[len(prefix):]
+            break
+    parsed = urlparse(url)
+    query = []
+    for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+        if key == "channel_binding":  # psycopg-only option, asyncpg rejects it
+            continue
+        if key == "sslmode":
+            key = "ssl"
+        query.append((key, value))
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
 class Settings(BaseSettings):
     # App
     ENV: str = "development"
+    # Run `alembic upgrade head` automatically when the app starts. Turn this
+    # on for hosts that have no separate release/migration step (e.g. FastAPI
+    # Cloud); the Dockerfile already migrates before starting.
+    RUN_MIGRATIONS_ON_STARTUP: bool = False
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     # Admin role-gating (Day 34) — the only way a user becomes an admin.
@@ -121,6 +153,18 @@ class Settings(BaseSettings):
     LANGCHAIN_PROJECT: str = "campus-ai"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def _prepare(self):
+        self.DATABASE_URL = normalize_database_url(self.DATABASE_URL)
+        # Fail fast in production rather than run with forgeable tokens.
+        if self.ENV.lower() in {"production", "prod"}:
+            if self.JWT_SECRET_KEY.strip().lower() in _WEAK_JWT_SECRETS or len(self.JWT_SECRET_KEY) < 32:
+                raise ValueError(
+                    "JWT_SECRET_KEY is missing or too weak for ENV=production "
+                    "(use at least 32 random characters, e.g. `openssl rand -hex 32`)."
+                )
+        return self
 
 
 settings = Settings()

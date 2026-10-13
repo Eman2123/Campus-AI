@@ -8,21 +8,12 @@ Deploy in that order, because each step needs the URL from the previous one.
 ## 1. Database (Neon)
 
 1. Create a project at [neon.tech](https://neon.tech).
-2. Copy the connection string and convert it for the async driver:
-   ```text
-   postgresql+asyncpg://USER:PASSWORD@HOST/DBNAME?ssl=require
-   ```
+2. Copy the connection string **exactly as Neon shows it** (`postgresql://…?sslmode=require&channel_binding=require`). The app converts it to the async-driver form itself.
 3. Enable pgvector (once, in the Neon SQL editor):
    ```sql
    CREATE EXTENSION IF NOT EXISTS vector;
    ```
-4. Create the tables from your machine (with `DATABASE_URL` pointing at Neon):
-   ```bash
-   cd backend
-   alembic upgrade head
-   ```
-
-> Run `alembic upgrade head` again **before** deploying any update that adds migrations.
+4. Tables are created automatically on the backend's first start (`RUN_MIGRATIONS_ON_STARTUP=true`, see step 2). To do it by hand instead, run `alembic upgrade head` from `backend/` with `DATABASE_URL` pointing at Neon.
 
 ---
 
@@ -39,8 +30,10 @@ fastapi login                      # opens the browser to authorise the CLI
 Set the environment variables (use `--secret` for anything sensitive):
 
 ```bash
-fastapi cloud env set --secret DATABASE_URL "postgresql+asyncpg://USER:PASSWORD@HOST/DB?ssl=require"
-fastapi cloud env set --secret JWT_SECRET_KEY "<long random string>"
+fastapi cloud env set ENV production
+fastapi cloud env set RUN_MIGRATIONS_ON_STARTUP true
+fastapi cloud env set --secret DATABASE_URL "<Neon connection string, as copied>"
+fastapi cloud env set --secret JWT_SECRET_KEY "$(openssl rand -hex 32)"
 fastapi cloud env set --secret AIML_API_KEY "<your LLM key>"
 fastapi cloud env set CORS_ORIGINS '["https://your-frontend.vercel.app"]'
 fastapi cloud env set FRONTEND_URL "https://your-frontend.vercel.app"
@@ -58,7 +51,8 @@ fastapi deploy
 Then check `https://<your-app>.fastapicloud.dev/api/health/ready`; it should report `AsyncPostgresSaver`.
 
 Notes:
-- FastAPI Cloud does **not** run `alembic upgrade head` for you. Run it from your machine against Neon (step 1) before deploying, and again before any update that adds migrations.
+- Migrations run automatically on startup because of `RUN_MIGRATIONS_ON_STARTUP=true`; later updates that add migrations need nothing extra.
+- With `ENV=production` the backend refuses to start if `JWT_SECRET_KEY` is weak (< 32 chars), and warns if `CORS_ORIGINS` still lists localhost.
 - Uploaded files go to local disk and are lost on redeploy/scale events; fine for a demo, not for real use.
 - If the app scales to zero when idle, the in-process reminder/digest scheduler only runs while it is awake.
 - Keep a single instance: the rate limiter counts in memory.
@@ -120,7 +114,7 @@ docker run --env-file .env -p 8000:8000 campus-ai-backend
    | `NEXT_PUBLIC_API_BASE_URL` | `https://your-backend.onrender.com` |
    | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | optional, same as the backend `GOOGLE_CLIENT_ID` |
 
-4. Deploy. If your frontend URL changed, update `CORS_ORIGINS` and `FRONTEND_URL` on the backend and redeploy it.
+4. Deploy. The build **fails on purpose** if `NEXT_PUBLIC_API_BASE_URL` is missing or points at localhost, so you never ship a site that calls the visitor's own machine. If your frontend URL changed, update `CORS_ORIGINS` and `FRONTEND_URL` on the backend and redeploy it.
 
 > `NEXT_PUBLIC_*` values are baked in at build time. Redeploy the frontend after changing them.
 

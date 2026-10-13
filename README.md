@@ -209,8 +209,10 @@ Only `DATABASE_URL` and `JWT_SECRET_KEY` are required. Every integration degrade
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `DATABASE_URL` | required | `postgresql+asyncpg://…` (add `?ssl=require` for Neon) |
+| `DATABASE_URL` | required | Postgres URL; paste Neon's string as-is, it is converted automatically |
 | `JWT_SECRET_KEY` | required | Signs access tokens |
+| `ENV` | `development` | Set `production` in deployments (enforces a strong `JWT_SECRET_KEY`) |
+| `RUN_MIGRATIONS_ON_STARTUP` | `false` | Apply migrations when the app starts (use on FastAPI Cloud) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | Allowed frontend origins |
 | `FRONTEND_URL` | `http://localhost:3000` | Used in password-reset links |
 | `ADMIN_EMAILS` | `[]` | Emails promoted to admin |
@@ -294,7 +296,7 @@ The suite runs against a real PostgreSQL + pgvector database, so point `DATABASE
 | Problem | Possible Fix |
 |---|---|
 | `pip install` fails | Check Python 3.12+ and use `pip install -r requirements.txt` |
-| "column does not exist" after an update | Run `alembic upgrade head` |
+| "column does not exist" after an update | Run `alembic upgrade head`, or set `RUN_MIGRATIONS_ON_STARTUP=true` |
 | CORS error / "can't reach the server" | Check `CORS_ORIGINS` and `NEXT_PUBLIC_API_BASE_URL`, then restart both |
 | Replies say `[stub — no AIML_API_KEY set]` | Set `AIML_API_KEY` in `backend/.env` |
 | Signup says "password cannot be longer than 72 bytes" | Keep the pinned `bcrypt==4.0.1` from `requirements.txt` |
