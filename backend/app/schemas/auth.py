@@ -4,12 +4,21 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
+def normalize_email(value):
+    """Emails are case-insensitive for our purposes: pydantic's EmailStr keeps
+    the local part as typed, so "Eman@x.com" and "eman@x.com" would otherwise
+    be two accounts and sign-in would fail on a different case."""
+    return value.strip().lower() if isinstance(value, str) else value
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     # Optional so existing API clients (and the test suite's signup
     # fixture) keep working unchanged.
     name: str | None = Field(default=None, max_length=100)
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email)
 
     @field_validator("name")
     @classmethod
@@ -24,6 +33,8 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
     remember_me: bool = False
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email)
 
 
 class UserOut(BaseModel):
@@ -44,6 +55,8 @@ class Token(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email)
 
 
 class ResetPasswordRequest(BaseModel):

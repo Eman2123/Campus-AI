@@ -79,6 +79,9 @@ The repository includes `backend/Dockerfile`, which applies migrations and then 
    | `ASSEMBLYAI_API_KEY` | optional, for voice |
    | `ELEVENLABS_API_KEY` | optional, for spoken replies (Read aloud, Talk mode) |
    | `GOOGLE_CLIENT_ID` | optional, for Google sign-in |
+   | `FORWARDED_ALLOW_IPS` | `*` on Render (see the note below) |
+
+   **Why `FORWARDED_ALLOW_IPS` matters:** the rate limiter keys on the client IP. Behind a proxy every request arrives from the proxy's address, so without this setting all users share one bucket (10 sign-ins/min, 5 sign-ups/min and 5 password resets/min *in total*), and one script could lock everyone out. The Docker image starts Uvicorn with `--proxy-headers --forwarded-allow-ips "$FORWARDED_ALLOW_IPS"`, which makes the real client IP (from `X-Forwarded-For`) visible to the limiter. The default is `127.0.0.1` (trust no outside proxy). Setting it to `*` is only safe when the host strips any client-supplied `X-Forwarded-For` before adding its own, as Render does; otherwise a client could spoof its IP and dodge the limits. If your platform publishes its proxy IP ranges, list those instead (comma-separated).
 
 4. Deploy, then check:
    ```text
@@ -132,7 +135,7 @@ docker run --env-file .env -p 8000:8000 campus-ai-backend
 
 - [ ] `GET /api/health` and `/api/health/ready` look healthy
 - [ ] Sign up, then sign in on the deployed frontend
-- [ ] Your email in `ADMIN_EMAILS` can open `/admin`
+- [ ] Your email in `ADMIN_EMAILS` can open `/admin` (sign in with Google; password sign-in does not grant admin)
 - [ ] Upload a document and ask a question about it
 - [ ] Chat history is still there after a backend restart
 - [ ] Password-reset email arrives (needs `RESEND_API_KEY`)
@@ -150,3 +153,7 @@ docker run --env-file .env -p 8000:8000 campus-ai-backend
 | `column ... does not exist` | A migration is missing; run `alembic upgrade head` |
 | Database connection fails | Check the `postgresql+asyncpg://` prefix and `?ssl=require` for Neon |
 | Reset emails don't arrive | `RESEND_API_KEY` is empty or the sender domain isn't verified |
+
+## Upgrade note: chat thread ids
+
+The agent's checkpointed memory is now keyed by `<user_id>:<session id>` instead of the bare session id, so users can no longer share a thread. Conversations that were checkpointed under the old id keep their saved history (messages table) but the agent starts fresh the next time they are continued; deleting a chat clears both the old and the new checkpoints.

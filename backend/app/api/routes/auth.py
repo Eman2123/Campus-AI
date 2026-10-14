@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.email import send_email
 from app.core.email_template import render_email
 from app.core.google_auth import GoogleAuthError, verify_google_id_token
+from app.core.chat_history import thread_ids_for_session
 from app.core.checkpointer import delete_thread_checkpoints
 from app.core.google_drive import delete_file_from_drive
 from app.core.rate_limit import RateLimitByIP
@@ -53,7 +54,7 @@ def _issue_token(user: User, remember_me: bool = False) -> Token:
     carries the same claims. `remember_me` only stretches the lifetime."""
     expires_delta = timedelta(days=settings.REMEMBER_ME_EXPIRE_DAYS) if remember_me else None
     token = create_access_token(
-        subject=str(user.id), extra_claims={"role": user.role}, expires_delta=expires_delta
+        subject=str(user.id), extra_claims={"role": user.role, "tv": user.token_version or 0}, expires_delta=expires_delta
     )
     return Token(access_token=token)
 
@@ -78,7 +79,10 @@ async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)):
         name=payload.name,
         password_hash=hash_password(payload.password),
     )
-    apply_admin_bootstrap(user)  # Day 34 — promotes if payload.email is in ADMIN_EMAILS
+    # No admin promotion here: a password signup never proves the address is
+    # the person's own, so anyone could register a listed ADMIN_EMAILS
+    # address first. Admins are promoted only on the Google path, where
+    # Google has verified the email.
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -108,12 +112,6 @@ async def signin(payload: UserLogin, db: AsyncSession = Depends(get_db)):
     # is disabled, which is useful for the person to know.
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been disabled")
-
-    # Day 34 — re-checked on every sign in, not just signup, so adding an
-    # email to ADMIN_EMAILS after the account already exists still takes
-    # effect without a manual DB update.
-    if apply_admin_bootstrap(user):
-        await db.commit()
 
     return _issue_token(user, remember_me=payload.remember_me)
 
@@ -222,6 +220,7 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
         raise invalid
 
     user.password_hash = hash_password(payload.password)
+    user.token_version = (user.token_version or 0) + 1  # signs out every session issued before the reset
     # Retire this link and any other still-open ones for the account.
     await db.execute(
         update(PasswordResetToken)
@@ -258,14 +257,30 @@ async def google_sign_in(payload: GoogleAuthRequest, db: AsyncSession = Depends(
         # holds. (Someone can still choose a real password later through
         # "Forgot password", which proves they own the inbox.)
         user = User(
-            email=profile.email,
+            email=profile.email.strip().lower(),
             name=(profile.name or "").strip()[:100] or None,
             password_hash=hash_password(secrets.token_urlsafe(32)),
+            google_linked_at=datetime.now(timezone.utc),
         )
         db.add(user)
     elif not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been disabled")
+    elif user.google_linked_at is None:
+        # An account with this address already exists but was made with a
+        # password, and nothing ever proved the person who set that password
+        # owns the inbox. Someone may have pre-registered the address to wait
+        # for its real owner. Google has now verified the owner, so take the
+        # account back: throw away whatever password is on it and revoke every
+        # session issued so far. The owner can set a new password with
+        # "Forgot password". This happens once; later Google sign-ins leave
+        # the password and sessions alone.
+        user.password_hash = hash_password(secrets.token_urlsafe(32))
+        user.token_version = (user.token_version or 0) + 1
+        user.google_linked_at = datetime.now(timezone.utc)
+        logger.info("google sign-in took over pre-existing password account %s", user.id)
 
+    # Google verified this email (email_verified is checked in
+    # verify_google_id_token), so this is the one place ADMIN_EMAILS applies.
     apply_admin_bootstrap(user)
     await db.commit()
     await db.refresh(user)
@@ -344,5 +359,5 @@ async def delete_me(
     await db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
     await db.execute(delete(User).where(User.id == user_id))
     await db.commit()
-    await delete_thread_checkpoints(thread_ids)
+    await delete_thread_checkpoints([t for sid in thread_ids for t in thread_ids_for_session(user_id, sid)])
     logger.info("account deleted: user=%s", user_id)

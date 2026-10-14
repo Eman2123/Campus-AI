@@ -58,13 +58,36 @@ def classify_intent(text: str) -> str:
     return classify_intent_llm(text) or classify_intent_keywords(text)
 
 
+def _is_human(message) -> bool:
+    """True for a student's message, whether it is a plain dict (role "user")
+    or a LangChain message object (type "human")."""
+    if isinstance(message, dict):
+        return message.get("role") in ("user", "human") or message.get("type") == "human"
+    return getattr(message, "type", None) == "human"
+
+
+def _text_of(message) -> str:
+    if isinstance(message, dict):
+        return str(message.get("content", ""))
+    return message.content if hasattr(message, "content") else str(message)
+
+
 def get_last_user_text(state: AgentState) -> str:
-    last_message = state["messages"][-1]
-    return last_message.content if hasattr(last_message, "content") else str(last_message)
+    """The student's most recent message. This must be the last HUMAN
+    message, not simply the last message: after the Feedback agent has
+    replied, the last message is the agent's own text, and the Homework
+    agent would otherwise treat that as the student's question."""
+    messages = state["messages"]
+    for message in reversed(messages):
+        if _is_human(message):
+            return _text_of(message)
+    return _text_of(messages[-1]) if messages else ""
 
 
 def supervisor_node(state: AgentState) -> dict:
     text = get_last_user_text(state)
     intent = classify_intent(text)
     logger.info("classified intent=%s for message: %r", intent, text[:80])
-    return {"intent": intent}
+    # Fresh turn: remember the student's own words, and clear the retry
+    # bookkeeping the checkpointer would otherwise carry over from the last turn.
+    return {"intent": intent, "student_text": text, "needs_retry": False, "feedback_text": None}

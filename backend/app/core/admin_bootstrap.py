@@ -3,19 +3,18 @@ from app.models.user import User
 
 
 def apply_admin_bootstrap(user: User) -> bool:
-    """Day 34 — the only way a user becomes an admin: their email is
-    listed in ADMIN_EMAILS. There's deliberately no self-service
-    "become admin" endpoint or signup flag — promotion is entirely
-    config-driven, so gaining admin access means someone with deploy
-    access decided it, not a request the user made.
+    """The only way a user becomes an admin: their email is listed in
+    ADMIN_EMAILS *and* they signed in with Google, which has verified that
+    they own the address. There's deliberately no self-service "become
+    admin" endpoint, and password signup/signin never promote: a password
+    account proves nothing about who owns the email, so otherwise anyone
+    could register an ADMIN_EMAILS address before its owner does.
 
-    Checked at both signup and signin (see app/api/routes/auth.py), not
-    just signup, so adding an email to ADMIN_EMAILS after someone
-    already has an account still promotes them next time they sign in —
-    no manual DB update needed to bootstrap the first admin.
+    Called from the Google sign-in route only. It runs on every Google
+    sign-in, so adding an email to ADMIN_EMAILS later still promotes an
+    existing account the next time that person signs in with Google.
 
-    Returns True if this call actually changed the role, so callers
-    know whether there's anything new to commit.
+    Returns True if this call actually changed the role.
     """
     admin_emails = {email.lower() for email in settings.ADMIN_EMAILS}
     if user.email.lower() in admin_emails and user.role != "admin":

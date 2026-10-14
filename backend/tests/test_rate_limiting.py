@@ -202,3 +202,62 @@ def test_voice_chat_is_rate_limited_by_user(client, auth_headers, frozen_limiter
             headers=auth_headers,
         )
     assert blocked.status_code == 429
+
+# ---------------------------------------------------------------------------
+# Behind a proxy (uvicorn --proxy-headers) and bucket pruning
+# ---------------------------------------------------------------------------
+
+
+def test_limiter_gives_each_forwarded_client_its_own_bucket():
+    """With uvicorn's proxy-headers handling (what the Dockerfile enables),
+    request.client.host is the real client from X-Forwarded-For, so one
+    user hitting the limit must not lock out another. Built on a tiny app so
+    the test doesn't need the database."""
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+    from app.core.rate_limit import RateLimitByIP
+
+    tiny = FastAPI()
+
+    @tiny.get("/ping", dependencies=[Depends(RateLimitByIP(times=2, seconds=60))])
+    def ping():
+        return {"ok": True}
+
+    proxied = TestClient(ProxyHeadersMiddleware(tiny, trusted_hosts="*"))
+
+    def hit(ip: str) -> int:
+        return proxied.get("/ping", headers={"X-Forwarded-For": ip}).status_code
+
+    assert [hit("203.0.113.1"), hit("203.0.113.1"), hit("203.0.113.1")] == [200, 200, 429]
+    assert hit("203.0.113.2") == 200  # a different real client is unaffected
+
+    # Without trusting the proxy, everyone looks like the same host (the bug).
+    untrusted = TestClient(ProxyHeadersMiddleware(tiny, trusted_hosts="10.9.9.9"))
+    codes = [untrusted.get("/ping", headers={"X-Forwarded-For": f"198.51.100.{n}"}).status_code for n in range(3)]
+    assert codes[-1] == 429
+
+
+def test_quiet_buckets_are_pruned():
+    from app.core import rate_limit
+
+    rate_limit._buckets.clear()
+    rate_limit._check("ip:/x:1.1.1.1", times=5, seconds=60)
+    rate_limit._check("ip:/x:2.2.2.2", times=5, seconds=60)
+    newest = max(b[-1] for b in rate_limit._buckets.values())
+
+    assert rate_limit._prune(newest + 30) == 0  # still inside their 60s window
+    assert len(rate_limit._buckets) == 2
+    assert rate_limit._prune(newest + 61) == 2  # now quiet: dropped
+    assert len(rate_limit._buckets) == 0
+
+
+def test_dockerfile_starts_uvicorn_with_proxy_headers():
+    """Guards the deployment config that makes the limiter per-client."""
+    from pathlib import Path
+
+    dockerfile = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text()
+    assert "--proxy-headers" in dockerfile
+    assert "--forwarded-allow-ips" in dockerfile
+    assert "FORWARDED_ALLOW_IPS" in dockerfile

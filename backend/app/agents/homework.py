@@ -1,5 +1,5 @@
+from app.agents.context import build_llm_messages
 from app.agents.state import AgentState
-from app.agents.supervisor import get_last_user_text
 from app.core.config import settings
 from app.core.llm import chat_completion
 
@@ -12,21 +12,33 @@ HOMEWORK_SYSTEM_PROMPT = (
 )
 
 
+RETRY_SEPARATOR = "\n\n---\n\n"
+
+
+def _with_feedback(state: AgentState, reply: str) -> str:
+    """When Homework runs because Feedback asked for a retry, the student must
+    still see the grade, so the reply is the Feedback text, a separator, then
+    the new help."""
+    feedback = state.get("feedback_text")
+    if state.get("needs_retry") and feedback:
+        return f"{feedback}{RETRY_SEPARATOR}{reply}"
+    return reply
+
+
 def homework_node(state: AgentState) -> dict:
-    user_text = get_last_user_text(state)
+    # build_llm_messages ends the conversation at the student's own latest
+    # message (the one the Supervisor stored as student_text), never at the
+    # previous agent's reply.
 
     if settings.AIML_API_KEY:
         try:
             reply = chat_completion(
-                messages=[
-                    {"role": "system", "content": HOMEWORK_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_text},
-                ]
+                messages=build_llm_messages(state, HOMEWORK_SYSTEM_PROMPT)
             )
-            return {"messages": [{"role": "assistant", "content": reply}], "agent_used": "homework"}
+            return {"messages": [{"role": "assistant", "content": _with_feedback(state, reply)}], "agent_used": "homework"}
         except Exception as exc:
             reply = f"[AIML API error, falling back to stub: {exc}]"
             return {"messages": [{"role": "assistant", "content": reply}], "agent_used": "homework"}
 
     reply = "[stub — no AIML_API_KEY set] Homework agent would walk through the solution here."
-    return {"messages": [{"role": "assistant", "content": reply}], "agent_used": "homework"}
+    return {"messages": [{"role": "assistant", "content": _with_feedback(state, reply)}], "agent_used": "homework"}

@@ -1,5 +1,6 @@
 import logging
 import os
+from functools import lru_cache
 
 import httpx
 from openai import APIConnectionError, OpenAI
@@ -28,18 +29,31 @@ def _request_url(exc: Exception) -> str:
         return "?"
 
 
+@lru_cache(maxsize=8)
+def _build_client(api_key: str, base_url: str, timeout: float, max_retries: int, trust_env: bool) -> OpenAI:
+    return OpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        timeout=timeout,
+        max_retries=max_retries,
+        # trust_env=False makes httpx ignore HTTP(S)_PROXY & friends entirely.
+        http_client=None if trust_env else httpx.Client(trust_env=False, timeout=timeout),
+    )
+
+
 def get_llm_client(trust_env: bool = True) -> OpenAI:
     """AIML API is OpenAI-compatible — same SDK, different base_url."""
     # Explicit timeout + a couple of automatic retries (the SDK backs off on
     # connection errors, 408/409/429 and 5xx) so a slow or flaky provider
-    # can't hang a chat request forever or fail on the first hiccup.
-    return OpenAI(
-        api_key=settings.AIML_API_KEY,
-        base_url=settings.AIML_API_BASE_URL,
-        timeout=settings.LLM_TIMEOUT_SECONDS,
-        max_retries=settings.LLM_MAX_RETRIES,
-        # trust_env=False makes httpx ignore HTTP(S)_PROXY & friends entirely.
-        http_client=None if trust_env else httpx.Client(trust_env=False, timeout=settings.LLM_TIMEOUT_SECONDS),
+    # can't hang a chat request forever or fail on the first hiccup. The
+    # client (and its connection pool) is built once per distinct settings
+    # tuple and reused, instead of on every call.
+    return _build_client(
+        settings.AIML_API_KEY,
+        settings.AIML_API_BASE_URL,
+        settings.LLM_TIMEOUT_SECONDS,
+        settings.LLM_MAX_RETRIES,
+        trust_env,
     )
 
 

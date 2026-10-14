@@ -17,6 +17,13 @@ logger = logging.getLogger("campus_ai.file_organizer")
 EXCERPT_CHARS = 1500
 
 
+def _read_file_and_text(storage_path: str, filename: str) -> tuple[bytes, str]:
+    """Blocking file read + extraction, run in a worker thread. Returns the raw
+    bytes too, because the Drive upload needs them."""
+    content = read_file(storage_path)
+    return content, extract_text(content, filename)
+
+
 async def organize_document(document_id: str) -> None:
     """Runs as a FastAPI BackgroundTask right after upload, alongside Day
     17's process_document — the File Organizer connector. Classifies the
@@ -40,8 +47,7 @@ async def organize_document(document_id: str) -> None:
         await db.commit()
 
         try:
-            content = read_file(document.storage_path)
-            text = extract_text(content, document.filename)
+            content, text = await asyncio.to_thread(_read_file_and_text, document.storage_path, document.filename)
             excerpt = text[:EXCERPT_CHARS]
 
             subject = await asyncio.to_thread(classify_subject, document.filename, excerpt)

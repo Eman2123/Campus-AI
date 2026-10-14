@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user
+from app.core.chat_history import thread_ids_for_session
 from app.core.checkpointer import delete_thread_checkpoints
 from app.core.database import get_db
 from app.models.message import Message
@@ -97,7 +98,7 @@ async def delete_session(
     await db.execute(delete(Message).where(Message.session_id == session_id))
     await db.execute(delete(Session).where(Session.id == session_id))
     await db.commit()
-    await delete_thread_checkpoints([session_id])
+    await delete_thread_checkpoints(thread_ids_for_session(current_user.id, session_id))
 
 
 @router.delete("/sessions", status_code=204)
@@ -111,4 +112,4 @@ async def clear_sessions(
     await db.execute(delete(Message).where(Message.session_id.in_(own_sessions)))
     await db.execute(delete(Session).where(Session.user_id == current_user.id))
     await db.commit()
-    await delete_thread_checkpoints(thread_ids)
+    await delete_thread_checkpoints([t for sid in thread_ids for t in thread_ids_for_session(current_user.id, sid)])

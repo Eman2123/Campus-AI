@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user
 from app.api.routes.agent import _persist_turn, _run_graph
+from app.core.chat_history import ensure_session_available
 from app.core.config import settings
 from app.core.rate_limit import RateLimitByUser
 from app.core.voice import synthesize_speech, transcribe_audio
@@ -46,6 +47,8 @@ async def voice_chat(
 ):
     if not settings.ASSEMBLYAI_API_KEY:
         raise HTTPException(status_code=503, detail="ASSEMBLYAI_API_KEY not configured")
+
+    await ensure_session_available(current_user.id, session_id)
 
     suffix = os.path.splitext(audio.filename or "")[1] or ".wav"
     audio_bytes = await audio.read()

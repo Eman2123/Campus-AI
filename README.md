@@ -255,7 +255,7 @@ PostgreSQL (history · memory)
 ```
 
 1. A student signs up or signs in.
-2. They upload notes or PDFs; the backend extracts text, chunks it, embeds it and stores the vectors. The File Organizer tags each file with a subject.
+2. They upload notes or PDFs; the backend extracts text, chunks it, embeds it and stores the vectors. Embeddings are requested in batches (`EMBEDDING_BATCH_SIZE`, default 64), and a document with more than `MAX_CHUNKS_PER_DOCUMENT` chunks (default 500, roughly 150k words) is rejected and shown as Failed. The File Organizer tags each file with a subject.
 3. They send a message; the Supervisor classifies the intent and routes it to an agent.
 4. The Document agent retrieves the most relevant chunks, and the Planner saves deadlines and study sessions.
 5. The reply streams back and the turn is saved to the chat history.
@@ -280,7 +280,7 @@ Errors return `{"detail": "..."}`. LLM problems map to `504` (timeout), `503` (p
 
 ## Admin Access
 
-Admin accounts are never created through normal signup. Add your email to `ADMIN_EMAILS` in `backend/.env`, restart the backend, then sign in. The role is applied at sign-in, so existing accounts are promoted too. Then open `/admin`.
+Admin accounts are never created through normal signup. Add your email to `ADMIN_EMAILS` in `backend/.env`, restart the backend, then **sign in with Google** using that address (set `GOOGLE_CLIENT_ID` first). The role is applied at Google sign-in, so existing accounts are promoted too. Password sign-up and sign-in never grant admin, because a password account does not prove the person owns the email address; without this, anyone could register a listed address before its owner does. Then open `/admin`.
 
 ## Testing
 
