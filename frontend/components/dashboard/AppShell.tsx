@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { PixelBadge, PixelButton, PixelIcon } from "@/components/pixel";
 import { docBadge } from "@/lib/dashboard-data";
@@ -20,6 +20,49 @@ const BASE_NAV = [
 ];
 
 const ADMIN_NAV = { href: "/admin", label: "Admin" };
+
+/**
+ * Desktop layout choices for the chat page: the left sidebar and the right
+ * Documents/Plan panel can each be hidden so the conversation gets the room.
+ * Remembered per browser; mobile has its own drawers and ignores this.
+ */
+type ShellLayout = {
+  sidebarOpen: boolean;
+  panelOpen: boolean;
+  toggleSidebar: () => void;
+  togglePanel: () => void;
+  /** Both hidden: the chat takes the whole window. */
+  focus: boolean;
+  toggleFocus: () => void;
+};
+
+const ShellLayoutContext = createContext<ShellLayout | null>(null);
+
+export function useShellLayout(): ShellLayout {
+  const ctx = useContext(ShellLayoutContext);
+  if (!ctx) throw new Error("useShellLayout must be used inside <AppShell>");
+  return ctx;
+}
+
+const SIDEBAR_KEY = "campus-ai.sidebar";
+const PANEL_KEY = "campus-ai.panel";
+
+function readFlag(key: string, fallback: boolean): boolean {
+  try {
+    const v = window.localStorage.getItem(key);
+    return v === null ? fallback : v === "1";
+  } catch {
+    return fallback;
+  }
+}
+
+function writeFlag(key: string, value: boolean) {
+  try {
+    window.localStorage.setItem(key, value ? "1" : "0");
+  } catch {
+    /* private mode or blocked storage: the choice just is not remembered */
+  }
+}
 
 function SidebarLists({ onNavigate }: { onNavigate?: () => void }) {
   const { sessions, docs, activeSessionId, openSession, startNewChat, removeSession } = useDashboard();
@@ -98,6 +141,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, signOut, dataError, prefs } = useDashboard();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const dark = useDarkMode();
   const displayName = user.name || user.email;
   const NAV = user.role === "admin" ? [...BASE_NAV, ADMIN_NAV] : BASE_NAV;
@@ -107,6 +152,39 @@ export function AppShell({ children }: { children: ReactNode }) {
     setDrawerOpen(false);
   }, [pathname]);
 
+  // Read the saved choices after mount so server and first client render agree.
+  useEffect(() => {
+    setSidebarOpen(readFlag(SIDEBAR_KEY, true));
+    setPanelOpen(readFlag(PANEL_KEY, false));
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((v) => {
+      writeFlag(SIDEBAR_KEY, !v);
+      return !v;
+    });
+  }, []);
+  const togglePanel = useCallback(() => {
+    setPanelOpen((v) => {
+      writeFlag(PANEL_KEY, !v);
+      return !v;
+    });
+  }, []);
+  const focus = !sidebarOpen && !panelOpen;
+  const toggleFocus = useCallback(() => {
+    const next = !(!sidebarOpen && !panelOpen);
+    // Entering focus hides both; leaving it brings back the sidebar only.
+    setSidebarOpen(!next);
+    setPanelOpen(false);
+    writeFlag(SIDEBAR_KEY, !next);
+    writeFlag(PANEL_KEY, false);
+  }, [sidebarOpen, panelOpen]);
+  const layout = useMemo(
+    () => ({ sidebarOpen, panelOpen, toggleSidebar, togglePanel, focus, toggleFocus }),
+    [sidebarOpen, panelOpen, toggleSidebar, togglePanel, focus, toggleFocus],
+  );
+  const showSidebar = !onChat || sidebarOpen;
+
   useEffect(() => {
     if (!drawerOpen) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawerOpen(false);
@@ -115,6 +193,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [drawerOpen]);
 
   return (
+    <ShellLayoutContext.Provider value={layout}>
     <div className={cn("flex h-[100dvh] flex-col bg-brand-white font-sans text-brand-black md:flex-row", dark && "app-dark", prefs.reduce_motion && "reduce-motion")}>
       {/* Mobile nav */}
       <nav className="flex gap-2 overflow-x-auto border-b-pixel border-brand-black bg-brand-yellow-soft px-3 py-2 md:hidden">
@@ -168,10 +247,21 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       {/* Sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col gap-3 overflow-y-auto border-r-pixel border-brand-black bg-brand-yellow-soft p-4 md:flex">
+      <aside className={cn("hidden w-64 shrink-0 flex-col gap-3 overflow-y-auto border-r-pixel border-brand-black bg-brand-yellow-soft p-4", showSidebar && "md:flex")}>
         <div className="flex items-center gap-2.5 font-pixel text-xl font-bold">
           <span className="grid h-9 w-9 place-items-center border-pixel border-brand-black bg-brand-yellow shadow-pixel-sm">C</span>
-          Campus AI
+          <span className="min-w-0 flex-1 truncate">Campus AI</span>
+          {onChat && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Hide sidebar"
+              title="Hide sidebar"
+              className="pixel-focus shrink-0 border-2 border-brand-black bg-brand-white px-2 py-0.5 text-sm hover:bg-brand-yellow"
+            >
+              «
+            </button>
+          )}
         </div>
 
         <nav className="flex flex-col gap-2">
@@ -219,5 +309,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex min-h-0 min-w-0 flex-1">{children}</div>
       </div>
     </div>
+    </ShellLayoutContext.Provider>
   );
 }

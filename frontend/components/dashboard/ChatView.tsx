@@ -8,6 +8,7 @@ import { getSessionMessages, sendVoice, speakText, streamChat, transcribeVoice, 
 import { STARTERS, SUGGESTIONS, dayLabel, docBadge, startOfDay, toEvents } from "@/lib/dashboard-data";
 import { cn } from "@/lib/cn";
 
+import { useShellLayout } from "./AppShell";
 import { DocDeleteButton } from "./DocDeleteButton";
 import { Markdown } from "./Markdown";
 import { useDashboard } from "./DashboardContext";
@@ -111,9 +112,9 @@ function PanelContent({ onPickFile }: { onPickFile: () => void }) {
   );
 }
 
-function RightPanel({ onPickFile }: { onPickFile: () => void }) {
+function RightPanel({ open, onPickFile }: { open: boolean; onPickFile: () => void }) {
   return (
-    <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l-pixel border-brand-black bg-brand-yellow-soft p-4 lg:flex">
+    <aside className={cn("hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l-pixel border-brand-black bg-brand-yellow-soft p-4", open && "lg:flex")}>
       <PanelContent onPickFile={onPickFile} />
     </aside>
   );
@@ -158,6 +159,7 @@ export function ChatView() {
   const modeRef = useRef<VoiceMode>("dictate");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [speakingKey, setSpeakingKey] = useState<string | null>(null);
+  const layout = useShellLayout();
   const [showWhy, setShowWhy] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const sessionsRef = useRef(sessions);
@@ -324,7 +326,6 @@ export function ChatView() {
   }
 
   const title = sessions.find((s) => s.id === activeSessionId)?.preview ?? "New chat";
-  const lastAgent = [...msgs].reverse().find((m) => m.role === "assistant" && m.agent)?.agent;
   const now = new Date();
   const nextDeadline = toEvents(schedule).find((e) => e.kind === "deadline" && e.at >= startOfDay(now));
   const days = nextDeadline ? Math.round((startOfDay(nextDeadline.at).getTime() - startOfDay(now).getTime()) / DAY_MS) : null;
@@ -339,48 +340,80 @@ export function ChatView() {
   return (
     <>
       <section className="bg-graph flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-pixel border-brand-black bg-brand-white px-4 py-2.5 sm:px-5 sm:py-3">
-          <div className="min-w-0 flex-1 basis-40">
-            <h1 className="truncate font-pixel text-lg font-bold sm:text-xl">{title}</h1>
-            <p className="truncate text-xs text-muted-onPaper">{lastAgent ? `Answered by the ${lastAgent} agent` : "The right agent is picked from your message"}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {deadlineBadge && <span className="hidden min-w-0 sm:inline-flex">{deadlineBadge}</span>}
-            <PixelButton size="sm" variant="secondary" className="lg:hidden" onClick={() => setPanelOpen(true)}>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b-pixel border-brand-black bg-brand-white px-3">
+          {!layout.sidebarOpen && (
+            <button
+              type="button"
+              onClick={layout.toggleSidebar}
+              aria-label="Show sidebar"
+              title="Show sidebar"
+              className="pixel-focus hidden shrink-0 border-2 border-brand-black bg-brand-white px-2 py-0.5 text-sm hover:bg-brand-yellow md:block"
+            >
+              »
+            </button>
+          )}
+          <h1 className="min-w-0 truncate font-pixel text-base font-bold">{title}</h1>
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            {deadlineBadge && <span className="hidden min-w-0 xl:inline-flex">{deadlineBadge}</span>}
+            <button
+              type="button"
+              onClick={layout.toggleFocus}
+              aria-pressed={layout.focus}
+              title={layout.focus ? "Show sidebar" : "Full screen chat"}
+              className="pixel-focus hidden border-2 border-brand-black bg-brand-white px-2.5 py-0.5 font-pixel text-xs font-semibold hover:bg-brand-yellow md:block"
+            >
+              {layout.focus ? "Exit full screen" : "Full screen"}
+            </button>
+            <button
+              type="button"
+              onClick={layout.togglePanel}
+              aria-pressed={layout.panelOpen}
+              title="Documents and plan"
+              className={cn(
+                "pixel-focus hidden border-2 border-brand-black px-2.5 py-0.5 font-pixel text-xs font-semibold hover:bg-brand-yellow lg:block",
+                layout.panelOpen ? "bg-brand-yellow" : "bg-brand-white",
+              )}
+            >
               Docs / Plan
-            </PixelButton>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanelOpen(true)}
+              className="pixel-focus border-2 border-brand-black bg-brand-white px-2.5 py-0.5 font-pixel text-xs font-semibold hover:bg-brand-yellow lg:hidden"
+            >
+              Docs / Plan
+            </button>
           </div>
-          {deadlineBadge && <div className="basis-full sm:hidden">{deadlineBadge}</div>}
         </header>
 
-        <div
-          className={cn(
-            "flex items-center gap-2 overflow-x-auto border-b-pixel border-brand-black bg-brand-yellow-soft px-4 py-2 sm:flex-wrap sm:px-5 sm:py-3",
-            msgs.length > 0 && "max-sm:hidden",
-          )}
-        >
-          <span className="shrink-0 font-pixel text-sm">Start with</span>
-          {Object.keys(STARTERS).map((a) => (
-            <button key={a} type="button" onClick={() => starter(a)} className="pixel-focus shrink-0 whitespace-nowrap border-2 border-brand-black bg-brand-white px-3 py-1 font-pixel text-xs font-semibold transition-transform hover:-translate-y-0.5 hover:bg-accent-mint active:translate-y-0">
-              {a}
-            </button>
-          ))}
-        </div>
-
         <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="flex flex-1 flex-col gap-4 px-4 pb-2 pt-4 sm:px-5 sm:pt-5">
+          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pb-2 pt-5 sm:px-6">
             {loadingMsgs && <p className="text-sm text-muted-onPaper">Loading chat…</p>}
             {!loadingMsgs && msgs.length === 0 && (
-              <PixelCard tone="soft" className="max-w-xl animate-pixel-pop text-sm">
-                <p className="font-pixel text-lg font-bold">Ask about your coursework</p>
-                <p className="mt-1">Upload a PDF, then ask for a quiz, flashcards, a summary or a study plan. Pick a starter above or just type.</p>
-              </PixelCard>
+              <div className="my-auto flex flex-col items-center gap-5 py-8 text-center">
+                <div>
+                  <p className="font-pixel text-3xl font-bold">What are we studying today?</p>
+                  <p className="mt-2 text-sm text-muted-onPaper">Upload a PDF, then ask for a quiz, flashcards, a summary or a study plan. The right agent is picked from your message.</p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {Object.keys(STARTERS).map((a) => (
+                    <button key={a} type="button" onClick={() => starter(a)} className="pixel-focus border-2 border-brand-black bg-brand-white px-3 py-1 font-pixel text-xs font-semibold hover:bg-accent-mint">
+                      {a}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {SUGGESTIONS.map((s) => (
+                    <PixelButton key={s} size="sm" variant="secondary" disabled={busy} onClick={() => say(s)}>{s}</PixelButton>
+                  ))}
+                </div>
+              </div>
             )}
             {msgs.map((m, i) =>
               m.role === "user" ? (
                 <div key={m.key} className="max-w-[80%] animate-pixel-rise self-end whitespace-pre-wrap bg-brand-black px-3.5 py-2 text-sm text-brand-white">{m.content}</div>
               ) : (
-                <div key={m.key} className="max-w-xl animate-pixel-rise">
+                <div key={m.key} className="max-w-full animate-pixel-rise">
                   <div className="mb-1.5 flex items-center gap-2 text-xs">
                     <span
                       className={cn(
@@ -460,13 +493,9 @@ export function ChatView() {
             )}
           </div>
 
-          <div className="sticky bottom-0 bg-gradient-to-b from-transparent to-brand-white px-4 pb-3 pt-3 sm:px-5 sm:pb-4 sm:pt-4">
+          <div className="sticky bottom-0 bg-gradient-to-b from-transparent to-brand-white px-4 pb-3 pt-3 sm:px-6">
+          <div className="mx-auto w-full max-w-3xl">
             {note && <p role="status" className="mb-2 text-xs text-muted-onPaper">{note}</p>}
-            <div className="mb-2.5 flex gap-2 overflow-x-auto sm:flex-wrap">
-              {SUGGESTIONS.map((s) => (
-                <PixelButton key={s} size="sm" variant="secondary" className="shrink-0 whitespace-nowrap" disabled={busy} onClick={() => say(s)}>{s}</PixelButton>
-              ))}
-            </div>
             <form
               className="flex flex-wrap items-center gap-2 border-pixel border-brand-black bg-brand-white p-2 shadow-pixel sm:flex-nowrap"
               onSubmit={(e) => {
@@ -547,9 +576,10 @@ export function ChatView() {
               </div>
             )}
           </div>
+          </div>
         </div>
       </section>
-      <RightPanel onPickFile={() => fileRef.current?.click()} />
+      <RightPanel open={layout.panelOpen} onPickFile={() => fileRef.current?.click()} />
       <MobilePanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
