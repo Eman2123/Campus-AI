@@ -1,12 +1,21 @@
 <div align="center">
 
-<img src="frontend/public/campus-ai-logo.png" alt="Campus AI" width="90" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="frontend/public/campus-ai-logo-dark.svg">
+  <img src="frontend/public/campus-ai-logo.png" alt="Campus AI" width="340">
+</picture>
 
-# Campus AI
-
-### Multi-Agent AI Study Assistant
+<h3>Multi-Agent AI Study Assistant</h3>
 
 Chat with specialist AI agents, ask questions about **your own documents**, and turn deadlines into a **study calendar** with email reminders.
+
+<p>
+  <a href="#quick-start"><b>Quick start</b></a> ·
+  <a href="#core-features"><b>Features</b></a> ·
+  <a href="#architecture"><b>Architecture</b></a> ·
+  <a href="DEPLOY.md"><b>Deploy</b></a> ·
+  <a href="#testing"><b>Tests</b></a>
+</p>
 
 [![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -23,6 +32,15 @@ Chat with specialist AI agents, ask questions about **your own documents**, and 
 **Campus AI** is a full-stack study assistant for students. Every message you send is classified by a **Supervisor** and routed to the right specialist agent (quiz, flashcards, homework help, notes, document Q&A, planning and more). You can upload your own PDFs, Word files and notes so answers are grounded in your material, and the Planner turns a deadline into saved study sessions that show up in a calendar and in reminder emails.
 
 The platform also includes authentication (email and Google), voice input, persistent chat history, per-user preferences, and an admin dashboard with usage analytics.
+
+### At a glance
+
+- **8 specialist agents** behind one chat box, picked automatically by a Supervisor.
+- **Your notes, your answers:** upload PDF, DOCX, TXT or Markdown and ask questions grounded in them.
+- **A real study plan:** deadlines become sessions on a calendar, with reminder emails and `.ics` export.
+- **Talk to it:** dictate or hold a spoken conversation, and have any reply read aloud.
+- **Yours to control:** theme, notifications and voice settings, and deletion of documents, chats or the whole account.
+- **Public product guide** at `/docs` for new students, plus Privacy and Terms pages.
 
 ## Core Features
 
@@ -322,6 +340,11 @@ See [`DEPLOY.md`](./DEPLOY.md) for production deployment instructions covering t
 - **Repository:** [Eman2123/Campus-AI](https://github.com/Eman2123/Campus-AI)
 - **API Documentation:** `http://localhost:8000/docs` when running locally
 - **Deployment Guide:** [`DEPLOY.md`](./DEPLOY.md)
+- **Student product guide:** `/docs` on the running frontend (source: `frontend/app/docs/page.tsx`)
+
+## Legal and compliance
+
+Privacy policy, terms, licences page, data export/deletion, and the internal runbooks are described in [`docs/legal/LAUNCH_LEGAL_CHECKLIST.md`](docs/legal/LAUNCH_LEGAL_CHECKLIST.md). Regenerate the open-source licence list with `python scripts/generate_licenses.py`.
 
 ## License
 
@@ -334,7 +357,3 @@ Released under the MIT License. See [LICENSE](LICENSE).
 **Campus AI · multi-agent study assistant**
 
 </div>
-
-## Legal and compliance
-
-Privacy policy, terms, licences page, data export/deletion, and the internal runbooks are described in [`docs/legal/LAUNCH_LEGAL_CHECKLIST.md`](docs/legal/LAUNCH_LEGAL_CHECKLIST.md). Regenerate the open-source licence list with `python scripts/generate_licenses.py`.
