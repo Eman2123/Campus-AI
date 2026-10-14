@@ -84,10 +84,13 @@ def test_google_signin_promotes_an_existing_account_retroactively(client):
     assert client.get("/api/admin/ping", headers=first_headers).status_code == 403
 
     with patch.object(settings, "ADMIN_EMAILS", [email]):
-        assert _google_login(client, email).status_code == 200
-        # The role lives in the DB (get_current_user re-reads it), so the
-        # original token sees the promotion too.
-        assert client.get("/api/admin/ping", headers=first_headers).status_code == 200
+        google = _google_login(client, email)
+        assert google.status_code == 200
+        google_headers = {"Authorization": f"Bearer {google.json()['access_token']}"}
+        assert client.get("/api/admin/ping", headers=google_headers).status_code == 200
+        # Google sign-in also takes over a pre-registered password account
+        # (fix 9), so the token from the password signup is revoked.
+        assert client.get("/api/admin/ping", headers=first_headers).status_code == 401
 
 
 def test_admin_bootstrap_is_case_insensitive_on_email(client):

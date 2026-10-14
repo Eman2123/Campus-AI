@@ -36,6 +36,11 @@ class User(Base):
     # sign-in taking over a pre-registered account). Tokens carry it as the
     # "tv" claim and get_current_user rejects a mismatch.
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Set the first time this account was verified through Google sign-in
+    # (which proves the person owns the email address). Until then a password
+    # on the account proves nothing: anyone could have pre-registered the
+    # address. See google_sign_in.
+    google_linked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
