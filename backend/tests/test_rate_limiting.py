@@ -202,3 +202,108 @@ def test_voice_chat_is_rate_limited_by_user(client, auth_headers, frozen_limiter
             headers=auth_headers,
         )
     assert blocked.status_code == 429
+
+# ---------------------------------------------------------------------------
+# Behind a reverse proxy: one bucket per real client, not one per proxy
+# ---------------------------------------------------------------------------
+
+
+def test_dockerfile_starts_uvicorn_with_proxy_flags():
+    """Without --proxy-headers every user behind Render/FastAPI Cloud shares the
+    proxy's IP, so the per-IP limits become one global bucket."""
+    from pathlib import Path
+
+    dockerfile = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text()
+    assert "--proxy-headers" in dockerfile
+    assert "--forwarded-allow-ips" in dockerfile
+    assert "FORWARDED_ALLOW_IPS" in dockerfile
+
+
+def test_each_forwarded_client_gets_its_own_bucket():
+    """With uvicorn's proxy-headers middleware (what --proxy-headers enables),
+    request.client.host becomes the X-Forwarded-For address, so two users behind
+    the same proxy don't share a limit."""
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+    from app.core.rate_limit import RateLimitByIP
+
+    probe = FastAPI()
+
+    @probe.get("/probe", dependencies=[Depends(RateLimitByIP(times=2, seconds=60))])
+    def _probe():
+        return {"ok": True}
+
+    # trusted_hosts="*" is the same as FORWARDED_ALLOW_IPS="*".
+    wrapped = ProxyHeadersMiddleware(probe, trusted_hosts="*")
+    with TestClient(wrapped) as c:
+        a = {"X-Forwarded-For": "203.0.113.1"}
+        b = {"X-Forwarded-For": "203.0.113.2"}
+        assert [c.get("/probe", headers=a).status_code for _ in range(3)] == [200, 200, 429]
+        # A different client behind the same proxy is unaffected.
+        assert c.get("/probe", headers=b).status_code == 200
+
+
+def test_untrusted_peer_cannot_spoof_forwarded_for():
+    """If the peer isn't in the allow-list the header is ignored, so a client
+    can't dodge the limit by rotating X-Forwarded-For values."""
+    from fastapi import Depends, FastAPI
+    from fastapi.testclient import TestClient
+    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+    from app.core.rate_limit import RateLimitByIP
+
+    probe = FastAPI()
+
+    @probe.get("/probe", dependencies=[Depends(RateLimitByIP(times=2, seconds=60))])
+    def _probe():
+        return {"ok": True}
+
+    wrapped = ProxyHeadersMiddleware(probe, trusted_hosts="10.0.0.1")  # not the test client
+    with TestClient(wrapped) as c:
+        codes = [c.get("/probe", headers={"X-Forwarded-For": f"203.0.113.{i}"}).status_code for i in range(3)]
+        assert codes == [200, 200, 429]
+
+
+# ---------------------------------------------------------------------------
+# Stale buckets are pruned
+# ---------------------------------------------------------------------------
+
+
+def test_quiet_keys_are_pruned_from_the_buckets(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.core import rate_limit
+
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(rate_limit, "time", SimpleNamespace(monotonic=lambda: clock["now"]))
+
+    rate_limit._check("ip:/x:1.1.1.1", times=5, seconds=60)
+    rate_limit._check("ip:/x:2.2.2.2", times=5, seconds=60)
+    assert {"ip:/x:1.1.1.1", "ip:/x:2.2.2.2"} <= set(rate_limit._buckets)
+
+    # Well past the window and the prune interval; a hit from someone new
+    # triggers the sweep.
+    clock["now"] += 300
+    rate_limit._check("ip:/x:3.3.3.3", times=5, seconds=60)
+
+    assert "ip:/x:1.1.1.1" not in rate_limit._buckets
+    assert "ip:/x:2.2.2.2" not in rate_limit._buckets
+    assert "ip:/x:1.1.1.1" not in rate_limit._expires_at
+    assert "ip:/x:3.3.3.3" in rate_limit._buckets
+
+
+def test_active_keys_survive_a_prune(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.core import rate_limit
+
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(rate_limit, "time", SimpleNamespace(monotonic=lambda: clock["now"]))
+
+    rate_limit._check("user:/x:a", times=2, seconds=600)
+    clock["now"] += 120  # past the prune interval, still inside this key's window
+    rate_limit._check("user:/x:b", times=2, seconds=60)
+    assert "user:/x:a" in rate_limit._buckets
+    assert len(rate_limit._buckets["user:/x:a"]) == 1

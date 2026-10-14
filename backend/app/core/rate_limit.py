@@ -23,17 +23,30 @@ from app.api.deps import get_current_user
 from app.models.user import User
 
 # key -> deque of monotonic timestamps of recent hits within the window.
-# Never explicitly pruned between requests for keys that go quiet — an
-# old IP's empty-but-present deque is cheap (a handful of bytes), but a
-# process that runs for a very long time against a very large number of
-# distinct IPs/users will see this dict grow unbounded. Acceptable for
-# this project's scale; a Redis-backed store would get TTL-based
-# expiry for free instead.
 _buckets: dict[str, deque] = defaultdict(deque)
+# key -> monotonic time after which every hit in its bucket has expired.
+# Used by _prune() so keys that go quiet (one-off IPs, deleted users)
+# don't pile up for the life of the process.
+_expires_at: dict[str, float] = {}
+_PRUNE_EVERY_SECONDS = 60.0
+_last_prune = 0.0
+
+
+def _prune(now: float) -> None:
+    """Drop buckets whose window has fully passed. Runs at most once per
+    _PRUNE_EVERY_SECONDS, so the cost is amortised across requests."""
+    global _last_prune
+    if now - _last_prune < _PRUNE_EVERY_SECONDS:
+        return
+    _last_prune = now
+    for key in [k for k, expires in _expires_at.items() if expires <= now]:
+        _expires_at.pop(key, None)
+        _buckets.pop(key, None)
 
 
 def _check(key: str, times: int, seconds: int) -> None:
     now = time.monotonic()
+    _prune(now)
     bucket = _buckets[key]
     cutoff = now - seconds
     while bucket and bucket[0] < cutoff:
@@ -48,15 +61,18 @@ def _check(key: str, times: int, seconds: int) -> None:
         )
 
     bucket.append(now)
+    _expires_at[key] = max(_expires_at.get(key, 0.0), now + seconds)
 
 
 def _client_ip(request: Request) -> str:
-    # No reverse-proxy X-Forwarded-For trust configured — this project
-    # has no documented reverse-proxy deployment yet (Day 39 picks a
-    # host), so trusting that header here would let a client spoof a
-    # different rate-limit bucket for itself. request.client.host is
-    # what the ASGI server itself observed, which can't be spoofed the
-    # same way.
+    # request.client.host is whatever the ASGI server reports. Behind a
+    # reverse proxy (Render, FastAPI Cloud, ...) that would be the proxy's
+    # own address for every user — one shared bucket. So the container
+    # starts uvicorn with --proxy-headers and --forwarded-allow-ips
+    # (FORWARDED_ALLOW_IPS, see backend/Dockerfile and DEPLOY.md), which
+    # makes uvicorn rewrite client.host from X-Forwarded-For, but only for
+    # requests coming from a trusted proxy. We deliberately don't parse
+    # X-Forwarded-For here: that would trust a client-supplied header.
     return request.client.host if request.client else "unknown"
 
 

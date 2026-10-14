@@ -62,6 +62,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core import rate_limit
 from app.core.rate_limit import _buckets
 from app.main import app
 
@@ -81,8 +82,12 @@ def _reset_rate_limit_buckets():
     in-memory dict in a fresh process per real deployment.
     """
     _buckets.clear()
+    rate_limit._expires_at.clear()
+    rate_limit._last_prune = 0.0
     yield
     _buckets.clear()
+    rate_limit._expires_at.clear()
+    rate_limit._last_prune = 0.0
 
 
 @pytest.fixture(scope="session")

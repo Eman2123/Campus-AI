@@ -79,6 +79,7 @@ The repository includes `backend/Dockerfile`, which applies migrations and then 
    | `ASSEMBLYAI_API_KEY` | optional, for voice |
    | `ELEVENLABS_API_KEY` | optional, for spoken replies (Read aloud, Talk mode) |
    | `GOOGLE_CLIENT_ID` | optional, for Google sign-in |
+   | `FORWARDED_ALLOW_IPS` | `*` on Render (see Notes below) |
 
 4. Deploy, then check:
    ```text
@@ -98,6 +99,7 @@ docker run --env-file .env -p 8000:8000 campus-ai-backend
 #### Notes
 
 - Run **one worker/instance**: the rate limiter keeps its counters in memory.
+- **`FORWARDED_ALLOW_IPS`** (Docker image only): the container starts Uvicorn with `--proxy-headers`, so the per-IP rate limits (sign-in 10/min, signup 5/min, forgot-password 5/min) use each visitor's real IP from `X-Forwarded-For` instead of the proxy's IP. Without it, behind a proxy every user shares one bucket and one script can lock everyone out. The variable is a comma-separated list of proxy IPs that Uvicorn trusts; it defaults to `127.0.0.1` (header ignored). Set it to `*` **only** when the host strips any client-supplied `X-Forwarded-For` and sets its own, as Render does. On a host that doesn't, `*` lets clients spoof their IP and dodge the limits. On FastAPI Cloud (which doesn't use this Dockerfile), check that platform's proxy-header setting instead.
 - Uploaded files are written to `UPLOAD_DIR` on local disk. On hosts with an ephemeral filesystem (Render free tier) they disappear on redeploy; attach a persistent disk or move storage to object storage for real use.
 - Free tiers sleep when idle, so the first request after a pause can be slow.
 
