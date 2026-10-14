@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Create your account", description: "
 
 export default function Page() {
   return (
-    <AuthShell panel="steps" eyebrow="Get started" title="Create your account" subtitle="Free while you're a student. Takes under a minute.">
+    <AuthShell panel="photo" eyebrow="Get started" title="Create your account" subtitle="Free while you're a student. Takes under a minute.">
       <Suspense>
         <SignUpForm />
       </Suspense>

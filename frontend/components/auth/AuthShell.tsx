@@ -1,12 +1,11 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { PixelBadge } from "@/components/pixel";
 import { Logo } from "@/components/ui/Logo";
 import { ChatLoop } from "./ChatLoop";
 
-type Panel = "chat" | "steps" | "objects";
+type Panel = "chat" | "photo" | "objects";
 
 type AuthShellProps = {
   /** What fills the yellow side panel (desktop only). */
@@ -26,74 +25,45 @@ type AuthShellProps = {
 export function AuthShell({ panel, eyebrow, title, subtitle, children }: AuthShellProps) {
   return (
     <main className="min-h-screen bg-brand-white text-brand-black lg:grid lg:grid-cols-2">
-      <section className="bg-graph flex min-h-screen flex-col px-5 py-6 sm:px-12 lg:px-14 xl:px-20">
-        <div className="mx-auto flex w-full max-w-md items-center justify-between gap-4">
-          <Logo height={32} />
-          <Link href="/" className="pixel-focus font-pixel text-sm font-semibold hover:underline">
-            ← Back to home
-          </Link>
-        </div>
-        <div className="mx-auto my-auto w-full max-w-md py-8">
+      <section className="flex min-h-screen flex-col px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
+        <Logo height={32} />
+        <div className="my-auto w-full max-w-md py-10">
           <PixelBadge tone="black">{eyebrow}</PixelBadge>
           <h1 className="mt-4 font-pixel text-4xl font-bold leading-[1.1]">{title}</h1>
           {subtitle && <p className="mt-3 font-sans text-base leading-relaxed text-muted-onPaper">{subtitle}</p>}
-          <div className="mt-6 border-pixel border-brand-black bg-brand-white p-5 shadow-pixel sm:p-6">{children}</div>
+          <div className="mt-7">{children}</div>
         </div>
-        <p className="mx-auto w-full max-w-md font-sans text-xs text-muted-onPaper">
-          By continuing you agree to the{" "}
-          <Link href="/terms" className="font-semibold underline">
-            Terms
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" className="font-semibold underline">
-            Privacy policy
-          </Link>
-          .
-        </p>
       </section>
 
       <aside
         aria-hidden="true"
-        className="relative hidden overflow-hidden border-l-pixel border-brand-black bg-brand-black text-brand-white lg:block"
+        className="relative hidden overflow-hidden border-l-pixel border-brand-black bg-brand-yellow lg:block"
       >
-        <PanelBackdrop />
-        <div className="relative h-full">
-          {panel === "chat" && <ChatPanel />}
-          {panel === "steps" && <StepsPanel />}
-          {panel === "objects" && <ObjectsPanel />}
-        </div>
+        {panel === "chat" && <ChatPanel />}
+        {panel === "photo" && <PhotoPanel />}
+        {panel === "objects" && <ObjectsPanel />}
       </aside>
     </main>
   );
 }
 
-const OBJ = "[filter:drop-shadow(3px_3px_0_#FACC15)]";
-
-/** Dark pixel-grid backdrop with a few yellow blocks, drawn in CSS so it costs no bandwidth. */
-function PanelBackdrop() {
-  return (
-    <>
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(250,204,21,0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(250,204,21,0.09) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
-      <div className="absolute left-10 top-12 h-6 w-6 bg-brand-yellow animate-pixel-float" />
-      <div className="absolute right-14 top-24 h-4 w-4 bg-accent-coral animate-pixel-float" style={{ animationDelay: "0.6s" }} />
-      <div className="absolute bottom-16 left-16 h-4 w-4 bg-accent-mint animate-pixel-float" style={{ animationDelay: "1.1s" }} />
-      <div className="absolute bottom-24 right-10 h-8 w-8 bg-brand-yellow animate-pixel-float" style={{ animationDelay: "0.3s" }} />
-    </>
-  );
-}
+const OBJ = "[filter:drop-shadow(3px_3px_0_#171717)]";
 
 function ChatPanel() {
   return (
-    <div className="flex h-full min-h-[640px] flex-col items-center justify-center gap-12 p-10 xl:p-16">
+    <div className="flex h-full min-h-[640px] flex-col items-center justify-center gap-14 p-10 xl:p-16">
       <div className="relative w-full max-w-[500px]">
         <ChatLoop />
+        <div className="absolute -right-6 -top-24 w-20 rotate-3 animate-pixel-float">
+          <Image
+            src="/assets/hero/obj-cap-c.webp"
+            width={207}
+            height={368}
+            alt=""
+            sizes="100px"
+            className={`h-auto w-full ${OBJ}`}
+          />
+        </div>
         <PixelBadge tone="mint" className="absolute -bottom-5 right-4 rotate-[4deg] shadow-pixel-sm">
           Reads your PDFs
         </PixelBadge>
@@ -101,49 +71,64 @@ function ChatPanel() {
           Exam in 3 days
         </PixelBadge>
       </div>
-      <div className="w-full max-w-[500px]">
-        <p className="font-pixel text-3xl font-bold leading-tight text-brand-yellow">Pick up where you left off.</p>
-        <p className="mt-2 font-sans text-sm text-brand-white/70">Your chats, notes and study plan are waiting.</p>
-      </div>
+      <p className="w-full max-w-[500px] font-pixel text-xl font-semibold leading-snug">
+        Pick up where you left off.
+      </p>
     </div>
   );
 }
 
-const STEPS = [
-  { n: "1", title: "Upload your notes", text: "PDF, DOCX, TXT or Markdown. They are read and indexed for you.", tone: "bg-brand-yellow" },
-  { n: "2", title: "Ask anything", text: "Quizzes, flashcards, summaries or homework help. The right agent is picked for you.", tone: "bg-brand-white" },
-  { n: "3", title: "Stay on schedule", text: "Deadlines become a plan, with a calendar export and reminder emails.", tone: "bg-brand-yellow" },
+const BENEFITS = [
+  "Answers from your own notes",
+  "Quizzes and flashcards",
+  "A plan built from your deadlines",
 ];
 
-const FACTS = ["8 study agents", "Voice in and out", "Delete your data any time"];
+const STEPS = [
+  { n: "1", title: "Upload your notes", text: "PDF, DOCX, TXT or Markdown." },
+  { n: "2", title: "Ask anything", text: "Quizzes, flashcards, summaries, homework help." },
+  { n: "3", title: "Stay on schedule", text: "Deadlines become a plan with reminders." },
+];
 
-function StepsPanel() {
+function PhotoPanel() {
   return (
-    <div className="flex h-full min-h-[640px] flex-col items-center justify-center gap-9 p-10 xl:p-16">
-      <div className="w-full max-w-[460px]">
-        <p className="font-pixel text-3xl font-bold leading-tight text-brand-yellow">Ready in three steps.</p>
-        <p className="mt-2 font-sans text-sm text-brand-white/70">Free while you&rsquo;re a student. Takes under a minute.</p>
-      </div>
-      <ol className="flex w-full max-w-[460px] flex-col gap-4">
-        {STEPS.map((st, i) => (
-          <li
-            key={st.n}
-            className={`flex items-start gap-4 border-pixel border-brand-black p-4 text-brand-black shadow-[4px_4px_0_#FACC15] ${st.tone} ${i % 2 ? "ml-6" : "mr-6"}`}
-          >
-            <span className="grid h-10 w-10 shrink-0 place-items-center border-pixel border-brand-black bg-brand-black font-pixel text-lg font-bold text-brand-yellow">
-              {st.n}
-            </span>
-            <div>
-              <p className="font-pixel text-lg font-bold leading-tight">{st.title}</p>
-              <p className="mt-1 font-sans text-sm leading-snug">{st.text}</p>
+    <div className="flex h-full min-h-[640px] flex-col items-center justify-center gap-10 p-10 xl:p-16">
+      <div className="relative w-full max-w-[440px]">
+        <div className="rotate-[1.5deg] border-pixel border-brand-black bg-brand-white shadow-pixel-lg">
+          <div className="flex items-center gap-2.5 border-b-pixel border-brand-black bg-brand-yellow px-3 py-1.5">
+            <div className="flex gap-1.5">
+              <span className="h-3 w-3 border-2 border-brand-black bg-brand-white" />
+              <span className="h-3 w-3 border-2 border-brand-black bg-brand-white" />
+              <span className="h-3 w-3 border-2 border-brand-black bg-brand-black" />
             </div>
-          </li>
-        ))}
-      </ol>
-      <ul className="flex w-full max-w-[460px] flex-wrap gap-2">
-        {FACTS.map((f) => (
-          <li key={f} className="border-2 border-brand-yellow px-3 py-1 font-pixel text-xs font-semibold text-brand-yellow">
-            {f}
+            <span className="font-pixel text-xs font-semibold leading-none">first_day</span>
+          </div>
+          <ol className="flex flex-col gap-4 p-5">
+            {STEPS.map((st) => (
+              <li key={st.n} className="flex items-start gap-3.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center border-pixel border-brand-black bg-brand-yellow font-pixel text-base font-bold">
+                  {st.n}
+                </span>
+                <div>
+                  <p className="font-pixel text-base font-bold leading-tight">{st.title}</p>
+                  <p className="mt-0.5 font-sans text-sm leading-snug text-muted-onPaper">{st.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="absolute -left-10 -top-[88px] w-32 -rotate-6 animate-pixel-float">
+          <Image src="/assets/hero/obj-flashcards.webp" width={309} height={241} alt="" sizes="130px" className={`h-auto w-full ${OBJ}`} />
+        </div>
+        <div className="absolute -bottom-10 -right-8 w-36 -rotate-3">
+          <Image src="/assets/hero/obj-calendar.webp" width={317} height={238} alt="" sizes="150px" className={`h-auto w-full ${OBJ}`} />
+        </div>
+      </div>
+      <ul className="flex w-full max-w-[440px] flex-col gap-2.5 font-pixel text-lg font-semibold">
+        {BENEFITS.map((b) => (
+          <li key={b} className="flex items-center gap-2.5">
+            <span className="h-2.5 w-2.5 shrink-0 bg-brand-black" />
+            {b}
           </li>
         ))}
       </ul>
@@ -167,7 +152,7 @@ function ObjectsPanel() {
           </div>
         ))}
       </div>
-      <p className="w-full max-w-[460px] font-pixel text-2xl font-bold leading-snug text-brand-yellow">
+      <p className="w-full max-w-[460px] font-pixel text-xl font-semibold leading-snug">
         Locked out? It happens to everyone.
       </p>
     </div>
