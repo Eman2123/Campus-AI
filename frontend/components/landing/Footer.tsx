@@ -2,7 +2,6 @@ import { ArrowUp } from "lucide-react";
 import Link from "next/link";
 
 import { Logo } from "@/components/ui/Logo";
-import { CONTACT_EMAIL } from "@/lib/site";
 
 const EXPLORE = [
   { href: "#how-it-works", label: "How it works" },
@@ -117,11 +116,9 @@ export function Footer() {
             <Link href="/licenses" className={linkClass}>
               Licences
             </Link>
-            {CONTACT_EMAIL && (
-              <a href={`mailto:${CONTACT_EMAIL}`} className={linkClass}>
-                {CONTACT_EMAIL}
-              </a>
-            )}
+            <Link href="/contact" className={linkClass}>
+              Contact
+            </Link>
           </div>
           <a
             href="#"

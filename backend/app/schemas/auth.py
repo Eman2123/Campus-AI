@@ -17,6 +17,10 @@ class UserCreate(BaseModel):
     # Optional so existing API clients (and the test suite's signup
     # fixture) keep working unchanged.
     name: str | None = Field(default=None, max_length=100)
+    # True when the person ticked "I agree to the Terms and Privacy policy".
+    # Optional so API clients and the test suite keep working; when true the
+    # time and version of the text are stored (see app.core.legal).
+    accept_terms: bool = False
 
     _normalize_email = field_validator("email", mode="before")(normalize_email)
 
@@ -67,6 +71,8 @@ class ResetPasswordRequest(BaseModel):
 class GoogleAuthRequest(BaseModel):
     # The "credential" string Google Identity Services hands the browser.
     credential: str = Field(min_length=10, max_length=4096)
+    # Same meaning as UserCreate.accept_terms; only used if this creates a new account.
+    accept_terms: bool = False
 
 
 class MessageOut(BaseModel):

@@ -32,6 +32,7 @@ Set the environment variables (use `--secret` for anything sensitive):
 ```bash
 fastapi cloud env set ENV production
 fastapi cloud env set RUN_MIGRATIONS_ON_STARTUP true
+fastapi cloud env set --secret CONTACT_EMAIL "<the inbox the contact form should reach>"
 fastapi cloud env set --secret DATABASE_URL "<Neon connection string, as copied>"
 fastapi cloud env set --secret JWT_SECRET_KEY "$(openssl rand -hex 32)"
 fastapi cloud env set --secret AIML_API_KEY "<your LLM key>"

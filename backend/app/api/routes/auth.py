@@ -11,6 +11,7 @@ from app.core.admin_bootstrap import apply_admin_bootstrap
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.email import send_email
+from app.core.legal import TERMS_VERSION
 from app.core.email_template import render_email
 from app.core.google_auth import GoogleAuthError, verify_google_id_token
 from app.core.chat_history import thread_ids_for_session
@@ -79,6 +80,9 @@ async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)):
         name=payload.name,
         password_hash=hash_password(payload.password),
     )
+    if payload.accept_terms:
+        user.terms_accepted_at = datetime.now(timezone.utc)
+        user.terms_version = TERMS_VERSION
     # No admin promotion here: a password signup never proves the address is
     # the person's own, so anyone could register a listed ADMIN_EMAILS
     # address first. Admins are promoted only on the Google path, where
@@ -262,6 +266,9 @@ async def google_sign_in(payload: GoogleAuthRequest, db: AsyncSession = Depends(
             password_hash=hash_password(secrets.token_urlsafe(32)),
             google_linked_at=datetime.now(timezone.utc),
         )
+        if payload.accept_terms:
+            user.terms_accepted_at = datetime.now(timezone.utc)
+            user.terms_version = TERMS_VERSION
         db.add(user)
     elif not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been disabled")
@@ -340,6 +347,8 @@ async def export_my_data(
             "name": current_user.name,
             "role": current_user.role,
             "created_at": iso(current_user.created_at),
+            "terms_accepted_at": iso(current_user.terms_accepted_at),
+            "terms_version": current_user.terms_version,
             "settings": Preferences(**(current_user.preferences or {})).model_dump(),
         },
         "conversations": conversations,

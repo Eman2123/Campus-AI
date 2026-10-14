@@ -74,7 +74,18 @@ export function SignInForm() {
       <PixelButton type="submit" size="lg" disabled={busy || !email.trim() || !password} className="w-full">
         {busy ? "Signing in…" : "Sign in"}
       </PixelButton>
-      <GoogleButton text="signin_with" onCredential={(c) => void run(() => signInWithGoogle(c))} />
+      <GoogleButton text="signin_with" onCredential={(c) => void run(() => signInWithGoogle(c, true))} />
+      <p className="font-sans text-xs text-muted-onPaper">
+        Continuing with Google creates an account if you do not have one, and means you agree to the{" "}
+        <Link href="/terms" className="pixel-focus font-semibold underline underline-offset-2">
+          Terms of use
+        </Link>{" "}
+        and have read the{" "}
+        <Link href="/privacy" className="pixel-focus font-semibold underline underline-offset-2">
+          Privacy policy
+        </Link>
+        .
+      </p>
       <p className="font-sans text-sm">
         New here?{" "}
         <Link href="/signup" className="pixel-focus font-semibold underline underline-offset-2">

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LegalPage } from "@/components/site/LegalPage";
+import { GOVERNING_LAW, LEGAL_UPDATED } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Terms of use",
@@ -14,13 +15,20 @@ export const metadata: Metadata = {
 // before launch (governing law, liability limits and age rules in particular).
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of use" updated="2026-10-12">
+    <LegalPage title="Terms of use" updated={LEGAL_UPDATED}>
       <p>By creating an account or using Campus AI you agree to these terms. If you do not agree, please do not use the service.</p>
 
       <h2>Your account</h2>
       <p>
         Keep your password private and use accurate details. You are responsible for what happens under your account. Tell us
         if you think someone else has access to it.
+      </p>
+
+      <h2>Who can use Campus AI</h2>
+      <p>
+        You must be at least 13 years old. If the law where you live requires a parent&rsquo;s or guardian&rsquo;s permission for
+        you to use an online service at your age, you must have it. You may use Campus AI only if you can legally agree to
+        these terms.
       </p>
 
       <h2>Your content</h2>
@@ -61,6 +69,14 @@ export default function TermsPage() {
         <li>Share your account or use automated tools to access it at scale.</li>
       </ul>
 
+      <h2>Copyright and content complaints</h2>
+      <p>
+        If you believe something on Campus AI infringes your copyright or other rights, tell us through the{" "}
+        <Link href="/contact?topic=copyright">contact form</Link>. Say what the material is, where you found it, why you hold the
+        rights, and how we can reach you. We will look into it and may remove the material. We may close the accounts of people
+        who repeatedly infringe the rights of others.
+      </p>
+
       <h2>AI answers can be wrong</h2>
       <p>
         Campus AI uses AI models. Answers, quizzes and study plans may contain mistakes or miss context. They are study aids,
@@ -82,6 +98,16 @@ export default function TermsPage() {
         To the extent the law allows, Campus AI is provided &ldquo;as is&rdquo; and we are not liable for indirect or
         consequential losses arising from its use. Nothing here limits rights you have by law that cannot be limited.
       </p>
+
+      {GOVERNING_LAW && (
+        <>
+          <h2>Governing law</h2>
+          <p>
+            These terms are governed by the laws of {GOVERNING_LAW}. Nothing here takes away rights you have under the
+            mandatory consumer-protection law of the place where you live.
+          </p>
+        </>
+      )}
 
       <h2>Changes</h2>
       <p>We may update these terms. If a change matters, we will update the date above; continuing to use Campus AI means you accept the new version.</p>

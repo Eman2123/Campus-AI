@@ -213,6 +213,8 @@ Only `DATABASE_URL` and `JWT_SECRET_KEY` are required. Every integration degrade
 | `JWT_SECRET_KEY` | required | Signs access tokens |
 | `ENV` | `development` | Set `production` in deployments (enforces a strong `JWT_SECRET_KEY`) |
 | `RUN_MIGRATIONS_ON_STARTUP` | `false` | Apply migrations when the app starts (use on FastAPI Cloud) |
+| `CONTACT_EMAIL` | empty | Private inbox for the `/contact` form; stays on the server, never shown on a page. Needs `RESEND_API_KEY` |
+| `LOG_RETENTION_DAYS` | `90` | Usage statistics older than this are deleted nightly |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | Allowed frontend origins |
 | `FRONTEND_URL` | `http://localhost:3000` | Used in password-reset links |
 | `ADMIN_EMAILS` | `[]` | Emails promoted to admin |

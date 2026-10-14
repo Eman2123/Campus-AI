@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LegalPage } from "@/components/site/LegalPage";
-import { CONTACT_EMAIL, OPERATOR_NAME } from "@/lib/site";
+import { LEGAL_UPDATED } from "@/lib/legal";
+import { OPERATOR_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Privacy policy",
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 // before launch, and update it whenever a provider or feature changes.
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" updated="2026-10-13">
+    <LegalPage title="Privacy policy" updated={LEGAL_UPDATED}>
       <p>
         Campus AI is a study assistant. This page explains what we collect when you use it, what we do with it, and the
         control you have. We keep it short on purpose.
@@ -25,14 +26,8 @@ export default function PrivacyPage() {
       <h2>Who is responsible for your data</h2>
       <p>
         {OPERATOR_NAME} runs Campus AI and decides how your data is used (in data-protection terms, the &ldquo;controller&rdquo;).
-        {CONTACT_EMAIL ? (
-          <>
-            {" "}
-            You can reach us at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> about anything on this page.
-          </>
-        ) : (
-          " You can reach us through the contact details on this site about anything on this page."
-        )}
+        {" "}
+        You can reach us through the <Link href="/contact">contact form</Link> about anything on this page.
       </p>
 
       <h2>What we collect</h2>
@@ -54,6 +49,14 @@ export default function PrivacyPage() {
         <li>
           <strong>Voice input:</strong> if you use the microphone, the recording is sent for transcription and the resulting
           text is used as your message.
+        </li>
+        <li>
+          <strong>Your agreement to these policies:</strong> when you create an account and tick the box (or continue with
+          Google), we keep the date and the version of the Terms you agreed to.
+        </li>
+        <li>
+          <strong>Messages you send us:</strong> what you write in the contact form (your name, email address and message) so
+          we can answer you.
         </li>
         <li>
           <strong>Basic usage data:</strong> anonymous page-view counts, and technical logs (such as request times and errors)
@@ -85,6 +88,52 @@ export default function PrivacyPage() {
         length you chose with &ldquo;Keep me signed in&rdquo;) and remembers your settings. Our page-view analytics do not use
         cookies.
       </p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[32rem] border-collapse border-2 border-brand-black font-sans text-sm">
+          <caption className="mb-2 text-left font-pixel text-base font-semibold">Browser storage we use</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="border-2 border-brand-black bg-brand-yellow-soft p-2 text-left font-pixel text-sm">Name</th>
+              <th scope="col" className="border-2 border-brand-black bg-brand-yellow-soft p-2 text-left font-pixel text-sm">What it is for</th>
+              <th scope="col" className="border-2 border-brand-black bg-brand-yellow-soft p-2 text-left font-pixel text-sm">Where</th>
+              <th scope="col" className="border-2 border-brand-black bg-brand-yellow-soft p-2 text-left font-pixel text-sm">How long</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border-2 border-brand-black p-2 align-top"><code>campus-ai:token</code></td>
+              <td className="border-2 border-brand-black p-2 align-top">Keeps you signed in.</td>
+              <td className="border-2 border-brand-black p-2 align-top">localStorage if you tick &ldquo;Keep me signed in&rdquo;, otherwise sessionStorage</td>
+              <td className="border-2 border-brand-black p-2 align-top">Until you sign out, or the sign-in expires (24 hours, or 30 days with &ldquo;Keep me signed in&rdquo;)</td>
+            </tr>
+            <tr>
+              <td className="border-2 border-brand-black p-2 align-top"><code>campus-ai:remember-default</code></td>
+              <td className="border-2 border-brand-black p-2 align-top">Remembers your &ldquo;Keep me signed in&rdquo; choice.</td>
+              <td className="border-2 border-brand-black p-2 align-top">localStorage</td>
+              <td className="border-2 border-brand-black p-2 align-top">Until you clear your browser data</td>
+            </tr>
+            <tr>
+              <td className="border-2 border-brand-black p-2 align-top"><code>campus-ai-theme</code></td>
+              <td className="border-2 border-brand-black p-2 align-top">Remembers light, dark or system theme.</td>
+              <td className="border-2 border-brand-black p-2 align-top">localStorage</td>
+              <td className="border-2 border-brand-black p-2 align-top">Until you clear your browser data</td>
+            </tr>
+            <tr>
+              <td className="border-2 border-brand-black p-2 align-top"><code>campus-ai:notice-ok</code></td>
+              <td className="border-2 border-brand-black p-2 align-top">Remembers that you closed the storage notice.</td>
+              <td className="border-2 border-brand-black p-2 align-top">localStorage</td>
+              <td className="border-2 border-brand-black p-2 align-top">Until you clear your browser data</td>
+            </tr>
+            <tr>
+              <td className="border-2 border-brand-black p-2 align-top"><code>campus-ai:tour-seen:&lt;your id&gt;</code></td>
+              <td className="border-2 border-brand-black p-2 align-top">Remembers that you have seen the welcome tour.</td>
+              <td className="border-2 border-brand-black p-2 align-top">localStorage</td>
+              <td className="border-2 border-brand-black p-2 align-top">Until you clear your browser data</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>All of this is strictly needed to run the app or to remember a choice you made, which is why we do not ask for consent first. None of it is used for advertising or for tracking you across other sites. You can remove it at any time by signing out or clearing your browser data.</p>
 
       <h2>Why we may use your data (legal basis)</h2>
       <p>If the EU or UK GDPR applies to you, we need a legal reason for each use of your data. These are ours:</p>
@@ -137,9 +186,11 @@ export default function PrivacyPage() {
       <h2>How long we keep your data</h2>
       <ul>
         <li><strong>Account, documents, conversations and schedule:</strong> until you delete them, or your account.</li>
-        <li><strong>Password-reset links:</strong> 30 minutes, and once used they cannot be used again.</li>
+        <li><strong>Password-reset links:</strong> valid for 30 minutes and single-use; expired ones are deleted automatically.</li>
         <li><strong>Server logs:</strong> a short period set by our hosting provider.</li>
-        <li><strong>Anonymous service statistics</strong> (which study agent ran, how long it took, whether it succeeded; no message text and no account): while we monitor the quality of the service.</li>
+        <li><strong>Anonymous service statistics</strong> (which study agent ran, how long it took, whether it succeeded; no message text and no account): deleted automatically after 90 days.</li>
+        <li><strong>Your agreement to the Terms</strong> (date and version): until you delete your account.</li>
+        <li><strong>Contact-form messages:</strong> only as long as needed to answer you and deal with your request.</li>
         <li><strong>Backups:</strong> deleted data can remain in provider backups for a limited time before they are overwritten.</li>
       </ul>
 
@@ -147,14 +198,14 @@ export default function PrivacyPage() {
       <p>
         In Settings you can delete individual documents, clear all your conversations, or delete your whole account. Deleting
         your account removes your profile, documents, conversations and schedule (and the copies we made in Google Drive, if you
-        used Drive filing). You can also email us and we will do it for you.
+        used Drive filing). You can also ask us through the <Link href="/contact?topic=privacy">contact form</Link> and we will do it for you.
       </p>
 
       <h2>Your rights</h2>
       <p>You can ask us at any time to:</p>
       <ul>
         <li><strong>Give you a copy of your data.</strong> Settings &rarr; Privacy and data &rarr; Download my data gives you a JSON file straight away.</li>
-        <li><strong>Correct it.</strong> You can change your name in Settings; email us for anything else.</li>
+        <li><strong>Correct it.</strong> You can change your name in Settings; use the <Link href="/contact?topic=privacy">contact form</Link> for anything else.</li>
         <li><strong>Delete it.</strong> See above.</li>
         <li><strong>Limit or object to</strong> how we use it, or move it to another service (the download is in a common, machine-readable format).</li>
       </ul>
@@ -164,7 +215,7 @@ export default function PrivacyPage() {
       </p>
 
       <h2>Children</h2>
-      <p>Campus AI is meant for students old enough to hold their own account. If you believe a young child has signed up, tell us and we will remove the account.</p>
+      <p>Campus AI is not meant for children under 13, and we do not knowingly collect their data. If you believe a young child has signed up, tell us through the <Link href="/contact?topic=privacy">contact form</Link> and we will remove the account.</p>
 
       <h2>Software we use</h2>
       <p>Campus AI is built with open-source software. The list and licences are on the <Link href="/licenses">Licences page</Link>.</p>

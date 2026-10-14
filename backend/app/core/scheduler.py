@@ -6,6 +6,7 @@ from apscheduler.triggers.cron import CronTrigger
 from app.core.config import settings
 from app.core.digest import send_daily_digests
 from app.core.reminders import send_deadline_reminders
+from app.core.retention import purge_expired_data
 
 logger = logging.getLogger("campus_ai.scheduler")
 
@@ -31,6 +32,12 @@ def start_scheduler() -> AsyncIOScheduler:
         send_daily_digests,
         trigger=CronTrigger(hour=settings.DIGEST_CHECK_HOUR_UTC, minute=0),
         id="daily_digest",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        purge_expired_data,
+        trigger=CronTrigger(hour=3, minute=15),
+        id="retention_purge",
         replace_existing=True,
     )
     scheduler.start()

@@ -14,7 +14,7 @@ from app.core.checkpointer import attach_postgres_checkpointer
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from app.core.scheduler import start_scheduler, stop_scheduler
-from app.api.routes import health, auth, agent, voice, documents, schedule, sessions, admin
+from app.api.routes import health, auth, agent, voice, documents, schedule, sessions, admin, contact
 
 setup_logging()
 logger = logging.getLogger("campus_ai")
@@ -136,6 +136,7 @@ app.include_router(documents.router, prefix="/api", tags=["documents"])
 app.include_router(schedule.router, prefix="/api", tags=["schedule"])
 app.include_router(sessions.router, prefix="/api", tags=["sessions"])
 app.include_router(admin.router, prefix="/api", tags=["admin"])
+app.include_router(contact.router, prefix="/api", tags=["contact"])
 
 
 @app.get("/")

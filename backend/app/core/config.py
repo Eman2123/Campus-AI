@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     # on for hosts that have no separate release/migration step (e.g. FastAPI
     # Cloud); the Dockerfile already migrates before starting.
     RUN_MIGRATIONS_ON_STARTUP: bool = False
+    # Private inbox for the public contact form (POST /api/contact). It lives
+    # only here, on the server: the frontend never sees the address, so it
+    # can't be scraped from the page or the JS bundle. Empty = form disabled.
+    CONTACT_EMAIL: str = ""
+    # Anonymous usage statistics (agent_call_logs) and expired password-reset
+    # links are deleted after this many days / once expired (retention.py).
+    LOG_RETENTION_DAYS: int = 90
     # Plain str (not list) so hosts like FastAPI Cloud don't choke on JSON
     # parsing. Comma-separated or a JSON array both work; use
     # `cors_origins_list` in code.

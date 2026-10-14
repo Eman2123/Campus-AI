@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
-import { PixelButton, PixelInput } from "@/components/pixel";
+import { PixelButton, PixelCheckbox, PixelInput } from "@/components/pixel";
 import { ApiError, friendlyError } from "@/lib/api";
 import { signInWithGoogle, signUp } from "@/lib/auth";
 import { isPasswordAcceptable } from "@/lib/password";
@@ -22,6 +22,7 @@ export function SignUpForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [exists, setExists] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function run(action: () => Promise<unknown>) {
@@ -40,7 +41,11 @@ export function SignUpForm() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    void run(() => signUp(name, email.trim(), password));
+    if (!agreed) {
+      setError("Please tick the box to agree to the Terms of use and Privacy policy.");
+      return;
+    }
+    void run(() => signUp(name, email.trim(), password, true));
   }
 
   return (
@@ -74,21 +79,31 @@ export function SignUpForm() {
         required
       />
       <PasswordField value={password} onChange={setPassword} autoComplete="new-password" showRules />
-      <PixelButton type="submit" size="lg" disabled={busy || !email.trim() || !isPasswordAcceptable(password)} className="w-full">
+      <PixelCheckbox checked={agreed} onChange={(e) => setAgreed(e.target.checked)}>
+        <span>
+          I agree to the{" "}
+          <Link href="/terms" target="_blank" className="pixel-focus font-semibold underline underline-offset-2">
+            Terms of use
+          </Link>{" "}
+          and have read the{" "}
+          <Link href="/privacy" target="_blank" className="pixel-focus font-semibold underline underline-offset-2">
+            Privacy policy
+          </Link>
+        </span>
+      </PixelCheckbox>
+      <PixelButton type="submit" size="lg" disabled={busy || !email.trim() || !isPasswordAcceptable(password) || !agreed} className="w-full">
         {busy ? "Creating account…" : "Create account"}
       </PixelButton>
-      <GoogleButton text="signup_with" onCredential={(c) => void run(() => signInWithGoogle(c))} />
-      <p className="font-sans text-xs text-muted-onPaper">
-        By creating an account you agree to the{" "}
-        <Link href="/terms" className="pixel-focus font-semibold underline underline-offset-2">
-          Terms of use
-        </Link>{" "}
-        and have read the{" "}
-        <Link href="/privacy" className="pixel-focus font-semibold underline underline-offset-2">
-          Privacy policy
-        </Link>
-        .
-      </p>
+      <GoogleButton
+        text="signup_with"
+        onCredential={(c) => {
+          if (!agreed) {
+            setError("Please tick the box to agree to the Terms of use and Privacy policy first.");
+            return;
+          }
+          void run(() => signInWithGoogle(c, true));
+        }}
+      />
       <p className="font-sans text-sm">
         Already have an account?{" "}
         <Link href="/signin" className="pixel-focus font-semibold underline underline-offset-2">

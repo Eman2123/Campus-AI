@@ -9,7 +9,7 @@ Every service that handles users' personal data for us. For each one you need a 
 | AIML API | Questions, relevant note excerpts, text to embed | Every chat, document upload | _check_ | ☐ | |
 | AssemblyAI | Voice recordings | Only when a user uses the microphone | _check_ | ☐ | |
 | ElevenLabs | Text of a reply | Only for Read aloud / Talk | _check_ | ☐ | |
-| Resend | Email address, email content | Resets, reminders, digest | _check_ | ☐ | |
+| Resend | Email address, email content | Resets, reminders, digest, contact-form messages | _check_ | ☐ | |
 | Google (sign-in) | Email, name (from Google to us) | Only if the user signs in with Google | _check_ | ☐ | |
 | Google Drive | Uploaded files | Only while Drive filing is on and configured | _check_ | ☐ | |
 | Neon (or other Postgres host) | All stored data (accounts, chats, documents' text and vectors, schedule) | Always | _check_ | ☐ | |

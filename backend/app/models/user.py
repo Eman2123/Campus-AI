@@ -41,6 +41,10 @@ class User(Base):
     # on the account proves nothing: anyone could have pre-registered the
     # address. See google_sign_in.
     google_linked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Evidence of agreeing to the Terms/Privacy policy at sign-up: when, and
+    # which version of the text. None for accounts created before this existed.
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    terms_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

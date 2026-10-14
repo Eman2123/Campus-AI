@@ -56,10 +56,10 @@ export function clearToken(): void {
   }
 }
 
-export async function signUp(name: string, email: string, password: string): Promise<string> {
+export async function signUp(name: string, email: string, password: string, acceptTerms = false): Promise<string> {
   const { access_token } = await apiFetch<TokenResponse>("/api/auth/signup", {
     method: "POST",
-    body: { name: name.trim() || null, email, password },
+    body: { name: name.trim() || null, email, password, accept_terms: acceptTerms },
   });
   // A brand-new account is a deliberate choice to use this device: keep them signed in.
   setToken(access_token, true);
@@ -75,10 +75,10 @@ export async function signIn(email: string, password: string, remember: boolean)
   return access_token;
 }
 
-export async function signInWithGoogle(credential: string): Promise<string> {
+export async function signInWithGoogle(credential: string, acceptTerms = false): Promise<string> {
   const { access_token } = await apiFetch<TokenResponse>("/api/auth/google", {
     method: "POST",
-    body: { credential },
+    body: { credential, accept_terms: acceptTerms },
   });
   setToken(access_token, true);
   return access_token;
