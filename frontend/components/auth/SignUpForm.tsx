@@ -78,6 +78,17 @@ export function SignUpForm() {
         {busy ? "Creating account…" : "Create account"}
       </PixelButton>
       <GoogleButton text="signup_with" onCredential={(c) => void run(() => signInWithGoogle(c))} />
+      <p className="font-sans text-xs text-muted-onPaper">
+        By creating an account you agree to the{" "}
+        <Link href="/terms" className="pixel-focus font-semibold underline underline-offset-2">
+          Terms of use
+        </Link>{" "}
+        and have read the{" "}
+        <Link href="/privacy" className="pixel-focus font-semibold underline underline-offset-2">
+          Privacy policy
+        </Link>
+        .
+      </p>
       <p className="font-sans text-sm">
         Already have an account?{" "}
         <Link href="/signin" className="pixel-focus font-semibold underline underline-offset-2">

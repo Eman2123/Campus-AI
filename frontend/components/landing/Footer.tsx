@@ -114,6 +114,9 @@ export function Footer() {
             <Link href="/terms" className={linkClass}>
               Terms
             </Link>
+            <Link href="/licenses" className={linkClass}>
+              Licences
+            </Link>
             {CONTACT_EMAIL && (
               <a href={`mailto:${CONTACT_EMAIL}`} className={linkClass}>
                 {CONTACT_EMAIL}

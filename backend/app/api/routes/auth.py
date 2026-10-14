@@ -2,7 +2,7 @@ import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +16,7 @@ from app.core.google_auth import GoogleAuthError, verify_google_id_token
 from app.core.chat_history import thread_ids_for_session
 from app.core.checkpointer import delete_thread_checkpoints
 from app.core.google_drive import delete_file_from_drive
-from app.core.rate_limit import RateLimitByIP
+from app.core.rate_limit import RateLimitByIP, RateLimitByUser
 from app.core.storage import delete_file
 from app.core.security import (
     create_access_token,
@@ -291,6 +291,72 @@ async def google_sign_in(payload: GoogleAuthRequest, db: AsyncSession = Depends(
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/me/export", dependencies=[Depends(RateLimitByUser(times=5, seconds=60))])
+async def export_my_data(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """A copy of everything we hold about the signed-in user, as JSON (GDPR
+    right of access / data portability). It contains the profile, settings,
+    every conversation, the document list (names, subjects, status; not the
+    files or their embeddings) and the schedule. Password hashes, tokens and
+    other people's data are never included."""
+    iso = lambda value: value.isoformat() if value else None  # noqa: E731
+
+    sessions = (
+        await db.execute(select(Session).where(Session.user_id == current_user.id).order_by(Session.started_at))
+    ).scalars().all()
+    conversations = []
+    for session in sessions:
+        rows = (
+            await db.execute(select(Message).where(Message.session_id == session.id).order_by(Message.created_at))
+        ).scalars().all()
+        conversations.append(
+            {
+                "id": str(session.id),
+                "started_at": iso(session.started_at),
+                "messages": [
+                    {"role": m.role, "content": m.content, "agent": m.agent_used, "at": iso(m.created_at)} for m in rows
+                ],
+            }
+        )
+
+    documents = (
+        await db.execute(select(Document).where(Document.user_id == current_user.id).order_by(Document.created_at))
+    ).scalars().all()
+    schedule = (
+        await db.execute(select(Schedule).where(Schedule.user_id == current_user.id).order_by(Schedule.due_date))
+    ).scalars().all()
+
+    response.headers["Content-Disposition"] = 'attachment; filename="campus-ai-data.json"'
+    return {
+        "exported_at": iso(datetime.now(timezone.utc)),
+        "account": {
+            "id": str(current_user.id),
+            "email": current_user.email,
+            "name": current_user.name,
+            "role": current_user.role,
+            "created_at": iso(current_user.created_at),
+            "settings": Preferences(**(current_user.preferences or {})).model_dump(),
+        },
+        "conversations": conversations,
+        "documents": [
+            {
+                "filename": d.filename,
+                "subject": d.subject,
+                "status": d.embedding_status,
+                "uploaded_at": iso(d.created_at),
+            }
+            for d in documents
+        ],
+        "schedule": [
+            {"title": item.title, "due": iso(item.due_date), "source": item.source, "created_at": iso(item.created_at)}
+            for item in schedule
+        ],
+    }
 
 
 @router.patch("/me", response_model=UserOut)
