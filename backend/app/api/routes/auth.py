@@ -260,10 +260,24 @@ async def google_sign_in(payload: GoogleAuthRequest, db: AsyncSession = Depends(
             email=profile.email.strip().lower(),
             name=(profile.name or "").strip()[:100] or None,
             password_hash=hash_password(secrets.token_urlsafe(32)),
+            google_linked_at=datetime.now(timezone.utc),
         )
         db.add(user)
     elif not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been disabled")
+    elif user.google_linked_at is None:
+        # An account with this address already exists but was made with a
+        # password, and nothing ever proved the person who set that password
+        # owns the inbox. Someone may have pre-registered the address to wait
+        # for its real owner. Google has now verified the owner, so take the
+        # account back: throw away whatever password is on it and revoke every
+        # session issued so far. The owner can set a new password with
+        # "Forgot password". This happens once; later Google sign-ins leave
+        # the password and sessions alone.
+        user.password_hash = hash_password(secrets.token_urlsafe(32))
+        user.token_version = (user.token_version or 0) + 1
+        user.google_linked_at = datetime.now(timezone.utc)
+        logger.info("google sign-in took over pre-existing password account %s", user.id)
 
     # Google verified this email (email_verified is checked in
     # verify_google_id_token), so this is the one place ADMIN_EMAILS applies.
