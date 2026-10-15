@@ -22,11 +22,70 @@ type AuthShellProps = {
  * yellow showcase panel on the right. Below `lg` the panel is dropped and
  * the form takes the whole screen.
  */
+const SIDE: Record<Panel, { badge: string; headline: string; blurb: string; stats: [string, string][] }> = {
+  chat: {
+    badge: "Welcome back",
+    headline: "Pick up right where you left off.",
+    blurb: "Your notes, chats and deadlines are exactly as you left them.",
+    stats: [["7", "study agents"], ["1", "place for all notes"], ["24/7", "ready to help"]],
+  },
+  photo: {
+    badge: "Join Campus AI",
+    headline: "Study smarter, starting today.",
+    blurb: "Free to join. Upload your notes and get answers, quizzes and a plan built from your own material.",
+    stats: [["PDF", "DOCX, TXT, MD"], ["Quiz", "and flashcards"], ["Plan", "with reminders"]],
+  },
+  objects: {
+    badge: "Account help",
+    headline: "Locked out? It happens to everyone.",
+    blurb: "Reset your password in a minute and get back to studying.",
+    stats: [["1 min", "to reset"], ["Email", "link, no support ticket"], ["Safe", "one-time links"]],
+  },
+};
+
+/**
+ * Split-screen frame shared by every auth page: a full yellow showcase panel
+ * on the left (brand, headline, visuals, key facts) and the form on the right.
+ * Below `lg` the panel is dropped and the form takes the whole screen.
+ */
 export function AuthShell({ panel, eyebrow, title, subtitle, children }: AuthShellProps) {
+  const side = SIDE[panel];
   return (
-    <main className="min-h-screen bg-brand-white text-brand-black lg:grid lg:grid-cols-2">
-      <section className="flex min-h-screen flex-col px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
-        <Logo height={32} />
+    <main className="min-h-screen bg-brand-white text-brand-black lg:grid lg:grid-cols-[1.05fr_1fr]">
+      <aside className="relative hidden min-h-screen flex-col overflow-hidden border-r-pixel border-brand-black bg-brand-yellow px-12 py-8 lg:flex xl:px-16">
+        <div className="flex items-center justify-between">
+          <Logo height={32} />
+          <a href="/" className="font-pixel text-sm font-bold uppercase tracking-wide underline-offset-4 hover:underline">
+            &larr; Back to home
+          </a>
+        </div>
+
+        <div className="mt-10 border-t-pixel border-brand-black pt-8">
+          <PixelBadge tone="black">{side.badge}</PixelBadge>
+          <h2 className="mt-5 max-w-[520px] font-pixel text-5xl font-bold leading-[1.05] xl:text-6xl">{side.headline}</h2>
+          <p className="mt-5 max-w-[460px] font-sans text-lg leading-relaxed">{side.blurb}</p>
+        </div>
+
+        <div aria-hidden="true" className="relative my-auto flex items-center justify-center py-8">
+          {panel === "chat" && <ChatPanel />}
+          {panel === "photo" && <PhotoPanel />}
+          {panel === "objects" && <ObjectsPanel />}
+        </div>
+
+        <dl className="grid grid-cols-3 gap-4 border-t-pixel border-brand-black pt-5">
+          {side.stats.map(([big, small]) => (
+            <div key={big}>
+              <dt className="font-pixel text-2xl font-bold leading-none">{big}</dt>
+              <dd className="mt-1 font-sans text-sm leading-snug">{small}</dd>
+            </div>
+          ))}
+        </dl>
+      </aside>
+
+      <section className="flex min-h-screen flex-col px-6 py-8 sm:px-12 lg:px-14 xl:px-24">
+        <div className="lg:hidden">
+          <Logo height={32} />
+        </div>
         <div className="my-auto w-full max-w-md py-10">
           <PixelBadge tone="black">{eyebrow}</PixelBadge>
           <h1 className="mt-4 font-pixel text-4xl font-bold leading-[1.1]">{title}</h1>
@@ -34,15 +93,6 @@ export function AuthShell({ panel, eyebrow, title, subtitle, children }: AuthShe
           <div className="mt-7">{children}</div>
         </div>
       </section>
-
-      <aside
-        aria-hidden="true"
-        className="relative hidden overflow-hidden border-l-pixel border-brand-black bg-brand-yellow lg:block"
-      >
-        {panel === "chat" && <ChatPanel />}
-        {panel === "photo" && <PhotoPanel />}
-        {panel === "objects" && <ObjectsPanel />}
-      </aside>
     </main>
   );
 }
@@ -51,7 +101,7 @@ const OBJ = "[filter:drop-shadow(3px_3px_0_#171717)]";
 
 function ChatPanel() {
   return (
-    <div className="flex h-full min-h-[640px] flex-col items-center justify-center gap-14 p-10 xl:p-16">
+    <div className="flex w-full flex-col items-center justify-center">
       <div className="relative w-full max-w-[500px]">
         <ChatLoop />
         <div className="absolute -right-6 -top-24 w-20 rotate-3 animate-pixel-float">
@@ -71,18 +121,9 @@ function ChatPanel() {
           Exam in 3 days
         </PixelBadge>
       </div>
-      <p className="w-full max-w-[500px] font-pixel text-xl font-semibold leading-snug">
-        Pick up where you left off.
-      </p>
     </div>
   );
 }
-
-const BENEFITS = [
-  "Answers from your own notes",
-  "Quizzes and flashcards",
-  "A plan built from your deadlines",
-];
 
 const STEPS = [
   { n: "1", title: "Upload your notes", text: "PDF, DOCX, TXT or Markdown." },
@@ -92,7 +133,7 @@ const STEPS = [
 
 function PhotoPanel() {
   return (
-    <div className="flex h-full min-h-[640px] flex-col items-center justify-center gap-10 p-10 xl:p-16">
+    <div className="flex w-full flex-col items-center justify-center">
       <div className="relative w-full max-w-[440px]">
         <div className="rotate-[1.5deg] border-pixel border-brand-black bg-brand-white shadow-pixel-lg">
           <div className="flex items-center gap-2.5 border-b-pixel border-brand-black bg-brand-yellow px-3 py-1.5">
@@ -124,14 +165,6 @@ function PhotoPanel() {
           <Image src="/assets/hero/obj-calendar.webp" width={317} height={238} alt="" sizes="150px" className={`h-auto w-full ${OBJ}`} />
         </div>
       </div>
-      <ul className="flex w-full max-w-[440px] flex-col gap-2.5 font-pixel text-lg font-semibold">
-        {BENEFITS.map((b) => (
-          <li key={b} className="flex items-center gap-2.5">
-            <span className="h-2.5 w-2.5 shrink-0 bg-brand-black" />
-            {b}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -144,7 +177,7 @@ function ObjectsPanel() {
     { src: "/assets/hero/obj-mic.webp", w: 206, h: 225, cls: "w-28 rotate-[-4deg]" },
   ];
   return (
-    <div className="flex h-full min-h-[640px] flex-col items-center justify-center gap-10 p-10 xl:p-16">
+    <div className="flex w-full flex-col items-center justify-center">
       <div className="grid w-full max-w-[460px] grid-cols-2 items-center justify-items-center gap-x-6 gap-y-8">
         {items.map((it, i) => (
           <div key={it.src} className={`${it.cls} animate-pixel-float`} style={{ animationDelay: `${i * 0.4}s` }}>
@@ -152,9 +185,6 @@ function ObjectsPanel() {
           </div>
         ))}
       </div>
-      <p className="w-full max-w-[460px] font-pixel text-xl font-semibold leading-snug">
-        Locked out? It happens to everyone.
-      </p>
     </div>
   );
 }
