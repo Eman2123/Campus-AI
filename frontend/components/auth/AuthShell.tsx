@@ -27,7 +27,7 @@ const SIDE: Record<Panel, { badge: string; headline: string; blurb: string; stat
     badge: "Welcome back",
     headline: "Pick up right where you left off.",
     blurb: "Your notes, chats and deadlines are exactly as you left them.",
-    stats: [["7", "study agents"], ["1", "place for all notes"], ["24/7", "ready to help"]],
+    stats: [["8", "study agents"], ["1", "place for all notes"], ["24/7", "ready to help"]],
   },
   photo: {
     badge: "Join Campus AI",
