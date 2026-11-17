@@ -41,6 +41,11 @@ class User(Base):
     # on the account proves nothing: anyone could have pre-registered the
     # address. See google_sign_in.
     google_linked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # When the person proved they can read mail sent to this address: by
+    # clicking the emailed verification link, by signing in with Google, or by
+    # finishing a password reset. None = never proved. While
+    # REQUIRE_EMAIL_VERIFICATION is on, a password sign-in is refused until set.
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Evidence of agreeing to the Terms/Privacy policy at sign-up: when, and
     # which version of the text. None for accounts created before this existed.
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

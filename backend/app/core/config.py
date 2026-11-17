@@ -122,6 +122,18 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
     PASSWORD_RESET_EXPIRE_MINUTES: int = 30
 
+    # Email verification — a new password account can't sign in until the
+    # person clicks the emailed link, so nobody can register an address they
+    # don't own. The link points at the frontend's /verify-email page.
+    # Turn REQUIRE_EMAIL_VERIFICATION off only for local development without
+    # an email provider: sign-up then verifies the account on the spot and
+    # signs the person straight in, as it did before this existed.
+    REQUIRE_EMAIL_VERIFICATION: bool = True
+    EMAIL_VERIFY_EXPIRE_HOURS: int = 24
+    # Minimum gap between two verification emails for the same account, so
+    # "resend" can't be used to flood somebody's inbox.
+    EMAIL_VERIFY_RESEND_COOLDOWN_SECONDS: int = 60
+
     # "Continue with Google" — the OAuth 2.0 *Web client ID* from Google
     # Cloud Console (same value the frontend gets as
     # NEXT_PUBLIC_GOOGLE_CLIENT_ID). Leave blank and POST /api/auth/google

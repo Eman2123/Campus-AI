@@ -26,6 +26,12 @@ for _var, _value in {
 }.items():
     os.environ[_var] = _value
 
+# Most tests just need a signed-in user, and signup now answers "check your
+# inbox" instead of a token when verification is on. So the suite runs with it
+# off by default (sign-up verifies on the spot); tests/test_email_verification.py
+# switches it on per test to cover the real flow.
+os.environ["REQUIRE_EMAIL_VERIFICATION"] = "false"
+
 def _from_dotenv(name: str) -> str | None:
     """Real environment variables win; otherwise read the value from `.env`.
     (pydantic-settings reads `.env` for the app too, but only later, after
