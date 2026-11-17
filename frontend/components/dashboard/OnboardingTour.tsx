@@ -235,7 +235,7 @@ export function OnboardingTour() {
                   size="sm"
                   onClick={() => {
                     close();
-                    router.push("/dashboard/chat");
+                    router.push("/dashboard");
                   }}
                 >
                   Start chatting
