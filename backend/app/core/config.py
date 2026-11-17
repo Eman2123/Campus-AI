@@ -17,6 +17,12 @@ def normalize_database_url(url: str) -> str:
     and `ssl=require`. Already-correct URLs pass through unchanged.
     """
     url = url.strip()
+    # A value pasted into a host's dashboard often arrives wrapped in quotes
+    # ("postgresql://…" copied from a .env) or as Neon's whole `psql '…'`
+    # command; either makes SQLAlchemy fail with "Could not parse URL".
+    if url.startswith("psql "):
+        url = url[len("psql "):].strip()
+    url = url.strip("\"'<>").strip()
     for prefix in ("postgres://", "postgresql://"):
         if url.startswith(prefix):
             url = "postgresql+asyncpg://" + url[len(prefix):]
