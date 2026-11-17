@@ -6,8 +6,10 @@ from app.models.document_chunk import DocumentChunk
 from app.models.schedule import Schedule
 from app.models.agent_call_log import AgentCallLog
 from app.models.password_reset_token import PasswordResetToken
+from app.models.email_verification_token import EmailVerificationToken
 
 __all__ = [
+    "EmailVerificationToken",
     "User",
     "Session",
     "Message",

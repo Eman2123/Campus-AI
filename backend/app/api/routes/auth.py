@@ -28,6 +28,7 @@ from app.core.security import (
 )
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
+from app.models.email_verification_token import EmailVerificationToken
 from app.models.message import Message
 from app.models.password_reset_token import PasswordResetToken
 from app.models.schedule import Schedule
@@ -38,11 +39,14 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     GoogleAuthRequest,
     MessageOut,
+    ResendVerificationRequest,
     ResetPasswordRequest,
+    SignupOut,
     Token,
     UserCreate,
     UserLogin,
     UserOut,
+    VerifyEmailRequest,
 )
 
 logger = logging.getLogger("campus_ai.auth")
@@ -60,9 +64,79 @@ def _issue_token(user: User, remember_me: bool = False) -> Token:
     return Token(access_token=token)
 
 
+# The frontend looks for this wording to offer "resend the link" on sign-in.
+EMAIL_NOT_VERIFIED_DETAIL = "Please confirm your email address first. Check your inbox for the link we sent."
+
+
+async def _send_verification_link(
+    user: User,
+    db: AsyncSession,
+    background_tasks: BackgroundTasks,
+    *,
+    respect_cooldown: bool = False,
+) -> None:
+    """Mints a single-use verification link for `user` and emails it after the
+    response goes out. Only the newest link works: earlier unused ones are
+    retired. `respect_cooldown` makes a too-soon repeat a silent no-op (used by
+    the public "resend" endpoint so it can't flood an inbox)."""
+    now = datetime.now(timezone.utc)
+    if respect_cooldown:
+        latest = (
+            await db.execute(
+                select(func.max(EmailVerificationToken.created_at)).where(EmailVerificationToken.user_id == user.id)
+            )
+        ).scalar_one_or_none()
+        if latest is not None and (now - latest).total_seconds() < settings.EMAIL_VERIFY_RESEND_COOLDOWN_SECONDS:
+            return
+
+    await db.execute(
+        update(EmailVerificationToken)
+        .where(EmailVerificationToken.user_id == user.id, EmailVerificationToken.used_at.is_(None))
+        .values(used_at=now)
+    )
+    token = generate_reset_token()
+    db.add(
+        EmailVerificationToken(
+            user_id=user.id,
+            token_hash=hash_reset_token(token),
+            expires_at=now + timedelta(hours=settings.EMAIL_VERIFY_EXPIRE_HOURS),
+        )
+    )
+    await db.commit()
+
+    link = f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
+    greeting = f"Hi {user.name}," if user.name else "Hi,"
+    expiry_note = (
+        f"It works once and expires in {settings.EMAIL_VERIFY_EXPIRE_HOURS} hours. "
+        "If you didn't create a Campus AI account, you can ignore this email."
+    )
+    html = render_email(
+        "Confirm your email",
+        [greeting, "Welcome to Campus AI. Confirm that this is your email address to finish creating your account."],
+        button=("Confirm my email", link),
+        closing=expiry_note,
+        preheader="Confirm your email to start using Campus AI",
+    )
+    background_tasks.add_task(
+        _send_verification_email,
+        user.email,
+        f"{greeting}\n\nConfirm your email address to finish creating your Campus AI account:\n{link}\n\n{expiry_note}\n",
+        html,
+    )
+
+
+def _send_verification_email(to: str, body: str, html: str | None = None) -> None:
+    # Runs after the response is sent, so a failure can't be reported to the
+    # caller — log it. The person can ask for another link from the sign-in page.
+    try:
+        send_email(to, "Confirm your Campus AI email", body, html=html)
+    except Exception:  # noqa: BLE001 — any provider/network failure
+        logger.exception("Could not send verification email to %s", to)
+
+
 @router.post(
     "/signup",
-    response_model=Token,
+    response_model=SignupOut,
     status_code=status.HTTP_201_CREATED,
     # Day 38 — by IP, not by user: there's no account yet to key on, and
     # this is exactly the endpoint a credential-stuffing/account-creation
@@ -70,28 +144,129 @@ def _issue_token(user: User, remember_me: bool = False) -> Token:
     # a form, tight for a script retrying emails.
     dependencies=[Depends(RateLimitByIP(times=5, seconds=60))],
 )
-async def signup(payload: UserCreate, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(User).where(User.email == payload.email))
-    if existing.scalar_one_or_none() is not None:
+async def signup(payload: UserCreate, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    existing = (await db.execute(select(User).where(User.email == payload.email))).scalar_one_or_none()
+
+    if existing is None:
+        user = User(
+            email=payload.email,
+            name=payload.name,
+            password_hash=hash_password(payload.password),
+        )
+        db.add(user)
+    elif (
+        settings.REQUIRE_EMAIL_VERIFICATION
+        and existing.is_active
+        and existing.email_verified_at is None
+        and existing.google_linked_at is None
+    ):
+        # Nobody has ever proved they own this address, so a second sign-up
+        # may claim it: otherwise a stranger who typed someone's email first
+        # (or a typo) would lock the real owner out. Nothing is exposed by
+        # this: the new password only works once the link in the inbox is
+        # clicked, and every older session is revoked.
+        user = existing
+        user.password_hash = hash_password(payload.password)
+        user.name = payload.name
+        user.token_version = (user.token_version or 0) + 1
+    else:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
-    user = User(
-        email=payload.email,
-        name=payload.name,
-        password_hash=hash_password(payload.password),
-    )
     if payload.accept_terms:
-        user.terms_accepted_at = datetime.now(timezone.utc)
+        user.terms_accepted_at = now
         user.terms_version = TERMS_VERSION
     # No admin promotion here: a password signup never proves the address is
     # the person's own, so anyone could register a listed ADMIN_EMAILS
     # address first. Admins are promoted only on the Google path, where
     # Google has verified the email.
-    db.add(user)
+
+    if not settings.REQUIRE_EMAIL_VERIFICATION:
+        # Local development without an email provider: trust the address and
+        # sign straight in, as sign-up always used to.
+        user.email_verified_at = now
+        await db.commit()
+        await db.refresh(user)
+        return SignupOut(
+            message="Account created.",
+            verification_required=False,
+            access_token=_issue_token(user).access_token,
+        )
+
     await db.commit()
     await db.refresh(user)
+    await _send_verification_link(user, db, background_tasks)
+    return SignupOut(
+        message=f"We sent a confirmation link to {user.email}. Open it to finish creating your account.",
+        verification_required=True,
+    )
 
-    return _issue_token(user)
+
+@router.post(
+    "/verify-email",
+    response_model=MessageOut,
+    dependencies=[Depends(RateLimitByIP(times=10, seconds=60))],
+)
+async def verify_email(payload: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
+    """Marks the address as confirmed for whoever holds a valid emailed link.
+    The link only ever arrives in that inbox, which is the proof."""
+    invalid = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="This confirmation link is invalid or has expired. Request a new one from the sign-in page.",
+    )
+    now = datetime.now(timezone.utc)
+
+    # FOR UPDATE for the same reason as reset_password: two simultaneous
+    # clicks must not both succeed.
+    result = await db.execute(
+        select(EmailVerificationToken)
+        .where(
+            EmailVerificationToken.token_hash == hash_reset_token(payload.token),
+            EmailVerificationToken.used_at.is_(None),
+            EmailVerificationToken.expires_at > now,
+        )
+        .with_for_update()
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        raise invalid
+
+    user = (await db.execute(select(User).where(User.id == record.user_id))).scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise invalid
+
+    if user.email_verified_at is None:
+        user.email_verified_at = now
+    await db.execute(
+        update(EmailVerificationToken)
+        .where(EmailVerificationToken.user_id == user.id, EmailVerificationToken.used_at.is_(None))
+        .values(used_at=now)
+    )
+    await db.commit()
+    return MessageOut(message="Email confirmed. You can sign in now.")
+
+
+@router.post(
+    "/resend-verification",
+    response_model=MessageOut,
+    # Sends email to an address typed by an anonymous caller, so same limit as
+    # forgot-password; the per-account cooldown inside also protects one inbox.
+    dependencies=[Depends(RateLimitByIP(times=5, seconds=60))],
+)
+async def resend_verification(
+    payload: ResendVerificationRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Sends a fresh confirmation link, and answers the same way whether or not
+    the address has an unconfirmed account, so it can't be used to find out who
+    is registered."""
+    generic = MessageOut(message="If that address has an unconfirmed account, a new link is on its way.")
+    user = (await db.execute(select(User).where(User.email == payload.email))).scalar_one_or_none()
+    if user is None or not user.is_active or user.email_verified_at is not None:
+        return generic
+    await _send_verification_link(user, db, background_tasks, respect_cooldown=True)
+    return generic
 
 
 @router.post(
@@ -116,6 +291,12 @@ async def signin(payload: UserLogin, db: AsyncSession = Depends(get_db)):
     # is disabled, which is useful for the person to know.
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been disabled")
+
+    # The password was right, so saying why the door is shut leaks nothing:
+    # the address is theirs to confirm, and the sign-in page offers to resend
+    # the link.
+    if settings.REQUIRE_EMAIL_VERIFICATION and user.email_verified_at is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=EMAIL_NOT_VERIFIED_DETAIL)
 
     return _issue_token(user, remember_me=payload.remember_me)
 
@@ -225,6 +406,10 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
 
     user.password_hash = hash_password(payload.password)
     user.token_version = (user.token_version or 0) + 1  # signs out every session issued before the reset
+    # The reset link was delivered to this inbox and used from it, which proves
+    # the same thing the verification link does.
+    if user.email_verified_at is None:
+        user.email_verified_at = now
     # Retire this link and any other still-open ones for the account.
     await db.execute(
         update(PasswordResetToken)
@@ -287,7 +472,10 @@ async def google_sign_in(payload: GoogleAuthRequest, db: AsyncSession = Depends(
         logger.info("google sign-in took over pre-existing password account %s", user.id)
 
     # Google verified this email (email_verified is checked in
-    # verify_google_id_token), so this is the one place ADMIN_EMAILS applies.
+    # verify_google_id_token), so it counts as confirmed here too, and this is
+    # the one place ADMIN_EMAILS applies.
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(timezone.utc)
     apply_admin_bootstrap(user)
     await db.commit()
     await db.refresh(user)
@@ -432,6 +620,7 @@ async def delete_me(
     await db.execute(delete(Session).where(Session.user_id == user_id))
     await db.execute(delete(Schedule).where(Schedule.user_id == user_id))
     await db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id))
+    await db.execute(delete(EmailVerificationToken).where(EmailVerificationToken.user_id == user_id))
     await db.execute(delete(User).where(User.id == user_id))
     await db.commit()
     await delete_thread_checkpoints([t for sid in thread_ids for t in thread_ids_for_session(user_id, sid)])

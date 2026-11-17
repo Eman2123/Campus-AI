@@ -56,14 +56,55 @@ export function clearToken(): void {
   }
 }
 
-export async function signUp(name: string, email: string, password: string, acceptTerms = false): Promise<string> {
-  const { access_token } = await apiFetch<TokenResponse>("/api/auth/signup", {
+export type SignUpResult =
+  /** The account exists but its address is unconfirmed: nobody is signed in until the emailed link is opened. */
+  | { verificationRequired: true; message: string }
+  /** Verification is switched off on the server (local development): signed in straight away. */
+  | { verificationRequired: false; message: string };
+
+export async function signUp(name: string, email: string, password: string, acceptTerms = false): Promise<SignUpResult> {
+  const data = await apiFetch<{
+    message: string;
+    verification_required: boolean;
+    access_token: string | null;
+  }>("/api/auth/signup", {
     method: "POST",
     body: { name: name.trim() || null, email, password, accept_terms: acceptTerms },
   });
-  // A brand-new account is a deliberate choice to use this device: keep them signed in.
-  setToken(access_token, true);
-  return access_token;
+  if (!data.verification_required && data.access_token) {
+    // A brand-new account is a deliberate choice to use this device: keep them signed in.
+    setToken(data.access_token, true);
+  }
+  return { verificationRequired: data.verification_required, message: data.message };
+}
+
+/** Matches the backend's EMAIL_NOT_VERIFIED_DETAIL, so sign-in can offer to resend the link. */
+export function isEmailNotVerified(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    (err as { status: number }).status === 403 &&
+    err instanceof Error &&
+    err.message.toLowerCase().includes("confirm your email")
+  );
+}
+
+/** Always resolves with the same neutral message, whether or not the email has an unconfirmed account. */
+export async function resendVerification(email: string): Promise<string> {
+  const { message } = await apiFetch<MessageResponse>("/api/auth/resend-verification", {
+    method: "POST",
+    body: { email },
+  });
+  return message;
+}
+
+export async function verifyEmail(token: string): Promise<string> {
+  const { message } = await apiFetch<MessageResponse>("/api/auth/verify-email", {
+    method: "POST",
+    body: { token },
+  });
+  return message;
 }
 
 export async function signIn(email: string, password: string, remember: boolean): Promise<string> {

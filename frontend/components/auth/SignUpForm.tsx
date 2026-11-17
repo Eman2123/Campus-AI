@@ -9,6 +9,7 @@ import { ApiError, friendlyError } from "@/lib/api";
 import { signInWithGoogle, signUp } from "@/lib/auth";
 import { isPasswordAcceptable } from "@/lib/password";
 import { useRedirectIfSignedIn } from "@/lib/useAuthGuard";
+import { CheckEmailNotice } from "./CheckEmailNotice";
 import { FormError } from "./FormError";
 import { GoogleButton } from "./GoogleButton";
 import { PasswordField } from "./PasswordField";
@@ -25,12 +26,26 @@ export function SignUpForm() {
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  async function run(action: () => Promise<unknown>) {
+  // Set once the server has emailed a confirmation link: the form is replaced
+  // by "check your inbox" because nobody is signed in until the link is opened.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
+  async function run(action: () => Promise<{ verificationRequired: boolean } | unknown>) {
     setError(null);
     setExists(false);
     setBusy(true);
     try {
-      await action();
+      const result = await action();
+      if (
+        typeof result === "object" &&
+        result !== null &&
+        "verificationRequired" in result &&
+        (result as { verificationRequired: boolean }).verificationRequired
+      ) {
+        setPendingEmail(email.trim());
+        setBusy(false);
+        return;
+      }
       router.replace("/dashboard/home");
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) setExists(true);
@@ -47,6 +62,8 @@ export function SignUpForm() {
     }
     void run(() => signUp(name, email.trim(), password, true));
   }
+
+  if (pendingEmail) return <CheckEmailNotice email={pendingEmail} />;
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>

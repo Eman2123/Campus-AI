@@ -21,6 +21,10 @@ from app.core.config import Settings, normalize_database_url
             "postgresql+asyncpg://u:p@host/db?ssl=require",
             "postgresql+asyncpg://u:p@host/db?ssl=require",
         ),
+        # Pasted into a host dashboard with quotes, or as Neon's whole psql command
+        ('"postgresql://u:p@host/db?sslmode=require"', "postgresql+asyncpg://u:p@host/db?ssl=require"),
+        ("'postgres://u:p@host/db'", "postgresql+asyncpg://u:p@host/db"),
+        ("psql 'postgresql://u:p@host/db?sslmode=require'", "postgresql+asyncpg://u:p@host/db?ssl=require"),
     ],
 )
 def test_database_url_is_normalised(raw, expected):

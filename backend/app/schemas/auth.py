@@ -68,6 +68,27 @@ class ResetPasswordRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+    _normalize_email = field_validator("email", mode="before")(normalize_email)
+
+
+class SignupOut(BaseModel):
+    """What sign-up answers. With verification on there is deliberately no
+    token: the person has to click the emailed link first. `access_token` is
+    only present when verification is switched off (local development)."""
+
+    message: str
+    verification_required: bool
+    access_token: str | None = None
+    token_type: str = "bearer"
+
+
 class GoogleAuthRequest(BaseModel):
     # The "credential" string Google Identity Services hands the browser.
     credential: str = Field(min_length=10, max_length=4096)

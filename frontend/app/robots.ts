@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         // Signed-in app, admin and one-time links have nothing to index.
-        disallow: ["/dashboard", "/admin", "/reset-password", "/forgot-password", "/design-system", "/api/"],
+        disallow: ["/dashboard", "/admin", "/reset-password", "/verify-email", "/forgot-password", "/design-system", "/api/"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
